@@ -1,0 +1,86 @@
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const { readData, writeData, generateId } = require('../config/jsonDb');
+
+// Generate JWT token
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: '30d',
+  });
+};
+
+// @desc    Auth admin & get token
+// @route   POST /api/auth/login
+// @access  Public
+const loginAdmin = async (req, res) => {
+  const { username, password } = req.body;
+
+  try {
+    const admins = readData('admins');
+    const admin = admins.find(a => a.username === username);
+
+    if (admin && (await bcrypt.compare(password, admin.password))) {
+      res.json({
+        _id: admin._id,
+        username: admin.username,
+        token: generateToken(admin._id),
+      });
+    } else {
+      res.status(401).json({ message: 'Invalid username or password' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Server error: ' + error.message });
+  }
+};
+
+// @desc    Get logged in admin data
+// @route   GET /api/auth/me
+// @access  Private
+const getMe = async (req, res) => {
+  try {
+    // req.admin is already loaded in protectAdmin middleware
+    res.json(req.admin);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error: ' + error.message });
+  }
+};
+
+// Seed default admin account
+const seedAdmin = async () => {
+  try {
+    const username = process.env.ADMIN_USERNAME || 'skreddy';
+    const password = process.env.ADMIN_PASSWORD || 'skreddy#1234';
+    
+    const admins = readData('admins');
+    
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    
+    if (admins.length === 0) {
+      const newAdmin = {
+        _id: generateId(),
+        username,
+        password: hashedPassword,
+        createdAt: new Date().toISOString()
+      };
+      admins.push(newAdmin);
+      writeData('admins', admins);
+      console.log(`Default admin account seeded successfully. (Username: ${username})`);
+    } else {
+      // Update existing first admin's credentials to match latest env settings
+      admins[0].username = username;
+      admins[0].password = hashedPassword;
+      writeData('admins', admins);
+      console.log(`Admin account credentials updated to match env files. (Username: ${username})`);
+    }
+  } catch (error) {
+    console.error('Error seeding admin:', error);
+  }
+};
+
+module.exports = {
+  loginAdmin,
+  getMe,
+  seedAdmin
+};

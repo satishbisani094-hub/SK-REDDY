@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+@theme {
+  --color-forest-900: #07140f;
+  --color-forest-800: #1b4332;
+  --color-forest-700: #2d6a4f;
+  --color-forest-600: #40916c;
+  --color-forest-500: #52b788;
+  --color-mountain-900: #0f1d30;
+  --color-mountain-800: #1d3557;
+  --color-mountain-700: #457b9d;
+  --color-dark-bg: #0b0f19;
+  --color-dark-card: #161f30;
+  --color-dark-accent: #1e293b;
+}
+
+/* Custom styles for high-fidelity adventure aesthetics */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    background-color: #0b0f19;
+    color: #f3f4f6;
+    font-family: 'Outfit', 'Inter', sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0b0f19;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2d6a4f;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #52b788;
+  }
+}
+
+/* Custom glassmorphism class */
+.glass {
+  background: rgba(22, 31, 48, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-nav {
+  background: rgba(11, 15, 25, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #52b788 0%, #457b9d 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-gradient {
+  background: linear-gradient(to bottom, rgba(11, 15, 25, 0.4), #0b0f19);
+}
