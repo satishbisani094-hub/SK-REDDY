@@ -1,4 +1,4 @@
-const { readData, writeData, generateId } = require('../config/jsonDb');
+const Enquiry = require('../models/Enquiry');
 
 // @desc    Submit a new enquiry
 // @route   POST /api/enquiries
@@ -11,19 +11,12 @@ const createEnquiry = async (req, res) => {
   }
 
   try {
-    const enquiries = readData('enquiries');
-
-    const newEnquiry = {
-      _id: generateId(),
+    const newEnquiry = await Enquiry.create({
       name,
       phone,
       email,
-      message,
-      createdAt: new Date().toISOString()
-    };
-
-    enquiries.push(newEnquiry);
-    writeData('enquiries', enquiries);
+      message
+    });
 
     res.status(201).json({
       success: true,
@@ -40,10 +33,8 @@ const createEnquiry = async (req, res) => {
 // @access  Private/Admin
 const getEnquiries = async (req, res) => {
   try {
-    const enquiries = readData('enquiries');
-    
     // Sort by creation date descending
-    enquiries.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const enquiries = await Enquiry.find().sort({ createdAt: -1 });
     
     res.json(enquiries);
   } catch (error) {
@@ -56,15 +47,13 @@ const getEnquiries = async (req, res) => {
 // @access  Private/Admin
 const deleteEnquiry = async (req, res) => {
   try {
-    const enquiries = readData('enquiries');
-    const enquiry = enquiries.find(e => e._id === req.params.id);
+    const enquiry = await Enquiry.findById(req.params.id);
 
     if (!enquiry) {
       return res.status(404).json({ message: 'Enquiry not found' });
     }
 
-    const updatedEnquiries = enquiries.filter(e => e._id !== req.params.id);
-    writeData('enquiries', updatedEnquiries);
+    await enquiry.deleteOne();
 
     res.json({ message: 'Enquiry deleted successfully' });
   } catch (error) {

@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const { readData, writeData, generateId } = require('../config/jsonDb');
+const Admin = require('../models/Admin');
 
 // Generate JWT token
 const generateToken = (id) => {
@@ -16,10 +15,9 @@ const loginAdmin = async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    const admins = readData('admins');
-    const admin = admins.find(a => a.username === username);
+    const admin = await Admin.findOne({ username });
 
-    if (admin && (await bcrypt.compare(password, admin.password))) {
+    if (admin && (await admin.matchPassword(password))) {
       res.json({
         _id: admin._id,
         username: admin.username,
@@ -51,27 +49,21 @@ const seedAdmin = async () => {
     const username = process.env.ADMIN_USERNAME || 'skreddy';
     const password = process.env.ADMIN_PASSWORD || 'skreddy#1234';
     
-    const admins = readData('admins');
+    const count = await Admin.countDocuments();
     
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-    
-    if (admins.length === 0) {
-      const newAdmin = {
-        _id: generateId(),
+    if (count === 0) {
+      // Create new admin (Admin.js pre-save hook will hash password automatically)
+      await Admin.create({
         username,
-        password: hashedPassword,
-        createdAt: new Date().toISOString()
-      };
-      admins.push(newAdmin);
-      writeData('admins', admins);
+        password
+      });
       console.log(`Default admin account seeded successfully. (Username: ${username})`);
     } else {
       // Update existing first admin's credentials to match latest env settings
-      admins[0].username = username;
-      admins[0].password = hashedPassword;
-      writeData('admins', admins);
+      const firstAdmin = await Admin.findOne();
+      firstAdmin.username = username;
+      firstAdmin.password = password; // triggers pre-save hook for password hash updating
+      await firstAdmin.save();
       console.log(`Admin account credentials updated to match env files. (Username: ${username})`);
     }
   } catch (error) {

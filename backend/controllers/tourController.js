@@ -1,4 +1,4 @@
-const { readData, writeData, generateId } = require('../config/jsonDb');
+const Tour = require('../models/Tour');
 
 // @desc    Get all tours with search/filter
 // @route   GET /api/tours
@@ -7,24 +7,23 @@ const getTours = async (req, res) => {
   const { search, difficulty } = req.query;
   
   try {
-    let tours = readData('tours');
+    const query = {};
 
     // Filter by search string
     if (search) {
-      const searchLower = search.toLowerCase();
-      tours = tours.filter(t => 
-        t.title.toLowerCase().includes(searchLower) || 
-        t.location.toLowerCase().includes(searchLower)
-      );
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { location: { $regex: search, $options: 'i' } }
+      ];
     }
 
     // Filter by difficulty level
     if (difficulty && difficulty !== 'All') {
-      tours = tours.filter(t => t.difficulty === difficulty);
+      query.difficulty = difficulty;
     }
 
     // Sort by tour date ascending
-    tours.sort((a, b) => new Date(a.tourDate) - new Date(b.tourDate));
+    const tours = await Tour.find(query).sort({ tourDate: 1 });
 
     res.json(tours);
   } catch (error) {
@@ -37,8 +36,7 @@ const getTours = async (req, res) => {
 // @access  Public
 const getTourById = async (req, res) => {
   try {
-    const tours = readData('tours');
-    const tour = tours.find(t => t._id === req.params.id);
+    const tour = await Tour.findById(req.params.id);
 
     if (!tour) {
       return res.status(404).json({ message: 'Tour not found' });
@@ -70,10 +68,7 @@ const createTour = async (req, res) => {
       }
     }
 
-    const tours = readData('tours');
-
-    const newTour = {
-      _id: generateId(),
+    const newTour = await Tour.create({
       title,
       location,
       description,
@@ -81,14 +76,10 @@ const createTour = async (req, res) => {
       difficulty,
       price: Number(price),
       seats: Number(seats),
-      tourDate: new Date(tourDate).toISOString(),
+      tourDate: new Date(tourDate),
       coverImage,
-      galleryImages: parsedGallery,
-      createdAt: new Date().toISOString()
-    };
-
-    tours.push(newTour);
-    writeData('tours', tours);
+      galleryImages: parsedGallery
+    });
 
     res.status(201).json(newTour);
   } catch (error) {
@@ -101,15 +92,13 @@ const createTour = async (req, res) => {
 // @access  Private/Admin
 const updateTour = async (req, res) => {
   try {
-    const tours = readData('tours');
-    const tourIndex = tours.findIndex(t => t._id === req.params.id);
+    const { title, location, description, duration, difficulty, price, seats, tourDate, coverImage, galleryImages } = req.body;
 
-    if (tourIndex === -1) {
+    const tour = await Tour.findById(req.params.id);
+
+    if (!tour) {
       return res.status(404).json({ message: 'Tour not found' });
     }
-
-    const tour = tours[tourIndex];
-    const { title, location, description, duration, difficulty, price, seats, tourDate, coverImage, galleryImages } = req.body;
 
     // Update simple fields
     if (title) tour.title = title;
@@ -119,7 +108,7 @@ const updateTour = async (req, res) => {
     if (difficulty) tour.difficulty = difficulty;
     if (price !== undefined) tour.price = Number(price);
     if (seats !== undefined) tour.seats = Number(seats);
-    if (tourDate) tour.tourDate = new Date(tourDate).toISOString();
+    if (tourDate) tour.tourDate = new Date(tourDate);
     if (coverImage) tour.coverImage = coverImage;
 
     // Parse and set gallery images
@@ -133,11 +122,9 @@ const updateTour = async (req, res) => {
       tour.galleryImages = parsedGallery;
     }
 
-    tour.updatedAt = new Date().toISOString();
-    tours[tourIndex] = tour;
-    writeData('tours', tours);
+    const updatedTour = await tour.save();
 
-    res.json(tour);
+    res.json(updatedTour);
   } catch (error) {
     res.status(500).json({ message: 'Server error: ' + error.message });
   }
@@ -148,16 +135,13 @@ const updateTour = async (req, res) => {
 // @access  Private/Admin
 const deleteTour = async (req, res) => {
   try {
-    const tours = readData('tours');
-    const tour = tours.find(t => t._id === req.params.id);
+    const tour = await Tour.findById(req.params.id);
 
     if (!tour) {
       return res.status(404).json({ message: 'Tour not found' });
     }
 
-    // Filter out the deleted tour
-    const updatedTours = tours.filter(t => t._id !== req.params.id);
-    writeData('tours', updatedTours);
+    await tour.deleteOne();
 
     res.json({ message: 'Tour deleted successfully' });
   } catch (error) {

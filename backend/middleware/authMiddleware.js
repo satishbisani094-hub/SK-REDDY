@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { readData } = require('../config/jsonDb');
+const Admin = require('../models/Admin');
 
 const protectAdmin = async (req, res, next) => {
   let token;
@@ -15,17 +15,14 @@ const protectAdmin = async (req, res, next) => {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Get admin from the local JSON file database
-      const admins = readData('admins');
-      const admin = admins.find(u => u._id === decoded.id);
+      // Get admin from the MongoDB database
+      const admin = await Admin.findById(decoded.id).select('-password');
 
       if (!admin) {
         return res.status(401).json({ message: 'Not authorized, admin user not found' });
       }
 
-      // Exclude password and append to request
-      const { password, ...adminWithoutPassword } = admin;
-      req.admin = adminWithoutPassword;
+      req.admin = admin;
 
       next();
     } catch (error) {

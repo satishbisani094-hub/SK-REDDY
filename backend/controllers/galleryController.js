@@ -1,4 +1,4 @@
-const { readData, writeData, generateId } = require('../config/jsonDb');
+const Gallery = require('../models/Gallery');
 
 // @desc    Get all gallery images
 // @route   GET /api/gallery
@@ -7,14 +7,14 @@ const getGalleryItems = async (req, res) => {
   const { category } = req.query;
 
   try {
-    let items = readData('gallery');
+    const query = {};
 
     if (category && category !== 'All') {
-      items = items.filter(item => item.category === category);
+      query.category = category;
     }
 
     // Sort by creation date descending (newest first)
-    items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const items = await Gallery.find(query).sort({ createdAt: -1 });
 
     res.json(items);
   } catch (error) {
@@ -33,7 +33,6 @@ const createGalleryItems = async (req, res) => {
       return res.status(400).json({ message: 'Image URL is required' });
     }
 
-    const items = readData('gallery');
     const createdItems = [];
 
     // Parse image URLs (can be array or comma-separated string)
@@ -49,19 +48,14 @@ const createGalleryItems = async (req, res) => {
       const imgUrl = parsedImages[i];
       const itemTitle = parsedImages.length > 1 ? `${title} (${i + 1})` : title;
 
-      const newItem = {
-        _id: generateId(),
+      const newItem = await Gallery.create({
         title: itemTitle || `Adventure Photo`,
         category,
-        image: imgUrl,
-        createdAt: new Date().toISOString()
-      };
-
-      items.push(newItem);
+        image: imgUrl
+      });
       createdItems.push(newItem);
     }
 
-    writeData('gallery', items);
     res.status(201).json(createdItems);
   } catch (error) {
     res.status(500).json({ message: 'Server error: ' + error.message });
@@ -73,16 +67,13 @@ const createGalleryItems = async (req, res) => {
 // @access  Private/Admin
 const deleteGalleryItem = async (req, res) => {
   try {
-    const items = readData('gallery');
-    const item = items.find(i => i._id === req.params.id);
+    const item = await Gallery.findById(req.params.id);
 
     if (!item) {
       return res.status(404).json({ message: 'Gallery item not found' });
     }
 
-    // Filter out item
-    const updatedItems = items.filter(i => i._id !== req.params.id);
-    writeData('gallery', updatedItems);
+    await item.deleteOne();
 
     res.json({ message: 'Gallery item deleted successfully' });
   } catch (error) {
