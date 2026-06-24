@@ -1,5 +1,4 @@
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
 const { readData, writeData, generateId } = require('../config/jsonDb');
 
 // Generate JWT token
@@ -9,25 +8,82 @@ const generateToken = (id) => {
   });
 };
 
-// @desc    Auth admin & get token
-// @route   POST /api/auth/login
+// @desc    Generate and "send" OTP to phone
+// @route   POST /api/auth/send-otp
 // @access  Public
-const loginAdmin = async (req, res) => {
-  const { username, password } = req.body;
+const sendOTP = async (req, res) => {
+  const { phoneNumber } = req.body;
+
+  if (!phoneNumber) {
+    return res.status(400).json({ message: 'Phone number is required' });
+  }
 
   try {
     const admins = readData('admins');
-    const admin = admins.find(a => a.username === username);
+    const admin = admins.find(a => a.phoneNumber === phoneNumber);
 
-    if (admin && (await bcrypt.compare(password, admin.password))) {
-      res.json({
-        _id: admin._id,
-        username: admin.username,
-        token: generateToken(admin._id),
-      });
-    } else {
-      res.status(401).json({ message: 'Invalid username or password' });
+    if (!admin) {
+      return res.status(404).json({ message: 'Phone number is not registered as Admin' });
     }
+
+    // Generate 6-digit OTP code
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5-minute expiry
+
+    // Save the OTP details to the JSON database
+    admin.otp = otp;
+    admin.otpExpiresAt = otpExpiresAt;
+    writeData('admins', admins);
+
+    // MOCK SMS: Output OTP to console log for copy-pasting
+    console.log(`\n===================================`);
+    console.log(`[SMS SEND MOCK] OTP for admin: ${otp}`);
+    console.log(`===================================\n`);
+
+    res.json({ message: 'OTP sent successfully to your mobile number' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error: ' + error.message });
+  }
+};
+
+// @desc    Verify OTP & sign token
+// @route   POST /api/auth/verify-otp
+// @access  Public
+const verifyOTP = async (req, res) => {
+  const { phoneNumber, otp } = req.body;
+
+  if (!phoneNumber || !otp) {
+    return res.status(400).json({ message: 'Phone number and OTP are required' });
+  }
+
+  try {
+    const admins = readData('admins');
+    const admin = admins.find(a => a.phoneNumber === phoneNumber);
+
+    if (!admin || !admin.otp) {
+      return res.status(400).json({ message: 'Invalid request or OTP not generated' });
+    }
+
+    // Check expiry
+    if (new Date() > new Date(admin.otpExpiresAt)) {
+      return res.status(400).json({ message: 'OTP has expired. Please request a new one' });
+    }
+
+    // Check match
+    if (admin.otp !== otp) {
+      return res.status(400).json({ message: 'Incorrect OTP code' });
+    }
+
+    // Clear OTP on successful login
+    admin.otp = null;
+    admin.otpExpiresAt = null;
+    writeData('admins', admins);
+
+    res.json({
+      _id: admin._id,
+      phoneNumber: admin.phoneNumber,
+      token: generateToken(admin._id),
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error: ' + error.message });
   }
@@ -38,7 +94,6 @@ const loginAdmin = async (req, res) => {
 // @access  Private
 const getMe = async (req, res) => {
   try {
-    // req.admin is already loaded in protectAdmin middleware
     res.json(req.admin);
   } catch (error) {
     res.status(500).json({ message: 'Server error: ' + error.message });
@@ -48,31 +103,24 @@ const getMe = async (req, res) => {
 // Seed default admin account
 const seedAdmin = async () => {
   try {
-    const username = process.env.ADMIN_USERNAME || 'skreddy';
-    const password = process.env.ADMIN_PASSWORD || 'skreddy#1234';
-    
+    // Falls back to a mock default phone number if not defined in .env
+    const phoneNumber = process.env.ADMIN_PHONE || '+919999999999';
+
     const admins = readData('admins');
-    
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-    
+
     if (admins.length === 0) {
       const newAdmin = {
         _id: generateId(),
-        username,
-        password: hashedPassword,
+        phoneNumber,
         createdAt: new Date().toISOString()
       };
       admins.push(newAdmin);
       writeData('admins', admins);
-      console.log(`Default admin account seeded successfully. (Username: ${username})`);
+      console.log(`Default admin account seeded successfully. (Phone: ${phoneNumber})`);
     } else {
-      // Update existing first admin's credentials to match latest env settings
-      admins[0].username = username;
-      admins[0].password = hashedPassword;
+      admins[0].phoneNumber = phoneNumber;
       writeData('admins', admins);
-      console.log(`Admin account credentials updated to match env files. (Username: ${username})`);
+      console.log(`Admin account credentials updated to match env files. (Phone: ${phoneNumber})`);
     }
   } catch (error) {
     console.error('Error seeding admin:', error);
@@ -80,7 +128,8 @@ const seedAdmin = async () => {
 };
 
 module.exports = {
-  loginAdmin,
+  sendOTP,
+  verifyOTP,
   getMe,
   seedAdmin
 };

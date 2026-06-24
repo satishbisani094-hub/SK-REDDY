@@ -1,8 +1,9 @@
 [
   {
-    "_id": "6a38e9f3ca8f37ad00a223aa",
-    "username": "skreddy",
-    "password": "$2a$10$Rw2Ov9F/Ebeo2BrufPLcDeV27ZPzhpiwFPo4NNrYSzKN2oEqo7K3K",
-    "createdAt": "2026-06-22T07:53:23.623Z"
+    "_id": "6a3c05b4b71ae6f84ff1cd89",
+    "phoneNumber": "+919999999999",
+    "createdAt": "2026-06-24T16:28:36.509Z",
+    "otp": "327062",
+    "otpExpiresAt": "2026-06-24T16:40:44.633Z"
   }
 ]

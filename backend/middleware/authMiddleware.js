@@ -23,9 +23,9 @@ const protectAdmin = async (req, res, next) => {
         return res.status(401).json({ message: 'Not authorized, admin user not found' });
       }
 
-      // Exclude password and append to request
-      const { password, ...adminWithoutPassword } = admin;
-      req.admin = adminWithoutPassword;
+      // Exclude OTP sensitive info and append to request
+      const { otp, otpExpiresAt, ...adminWithoutSecrets } = admin;
+      req.admin = adminWithoutSecrets;
 
       next();
     } catch (error) {

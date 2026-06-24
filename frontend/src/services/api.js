@@ -21,14 +21,21 @@ api.interceptors.request.use(
 );
 
 // Auth Services
-export const login = async (username, password) => {
-  const response = await api.post('/auth/login', { username, password });
+// Auth Services
+export const sendOTP = async (phoneNumber) => {
+  const response = await api.post('/auth/send-otp', { phoneNumber });
+  return response.data;
+};
+
+export const verifyOTP = async (phoneNumber, otp) => {
+  const response = await api.post('/auth/verify-otp', { phoneNumber, otp });
   if (response.data && response.data.token) {
     localStorage.setItem('adminToken', response.data.token);
-    localStorage.setItem('adminUser', JSON.stringify({ username: response.data.username }));
+    localStorage.setItem('adminUser', JSON.stringify({ phoneNumber: response.data.phoneNumber }));
   }
   return response.data;
 };
+
 
 export const logout = () => {
   localStorage.removeItem('adminToken');
@@ -50,11 +57,11 @@ export const getTours = async (search = '', difficulty = 'All') => {
   const params = [];
   if (search) params.push(`search=${encodeURIComponent(search)}`);
   if (difficulty && difficulty !== 'All') params.push(`difficulty=${encodeURIComponent(difficulty)}`);
-  
+
   if (params.length > 0) {
     url += `?${params.join('&')}`;
   }
-  
+
   const response = await api.get(url);
   return response.data;
 };

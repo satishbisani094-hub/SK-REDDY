@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { FaLock, FaUser, FaCompass, FaTimes } from 'react-icons/fa';
-import { login } from '../services/api';
+import { FaLock, FaPhone, FaCompass, FaTimes, FaArrowLeft } from 'react-icons/fa';
+import { sendOTP, verifyOTP } from '../services/api';
 import Toast from './Toast';
 
 const AdminLoginModal = ({ onClose, onSuccess }) => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [otp, setOtp] = useState('');
+  const [step, setStep] = useState(1); // 1: Enter Phone, 2: Enter OTP
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -28,22 +29,42 @@ const AdminLoginModal = ({ onClose, onSuccess }) => {
     setToast({ message, type });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSendOTP = async (e) => {
     e.preventDefault();
-    if (!username || !password) {
-      showToast('Please fill in all fields', 'error');
+    if (!phoneNumber) {
+      showToast('Please enter your phone number', 'error');
       return;
     }
 
     setLoading(true);
     try {
-      await login(username, password);
+      await sendOTP(phoneNumber);
+      showToast('OTP sent successfully to your mobile number!', 'success');
+      setStep(2);
+    } catch (error) {
+      const errMsg = error.response?.data?.message || 'Failed to send OTP. Please check the phone number.';
+      showToast(errMsg, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault();
+    if (!otp) {
+      showToast('Please enter the OTP code', 'error');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await verifyOTP(phoneNumber, otp);
       showToast('Logged in successfully!', 'success');
       setTimeout(() => {
         onSuccess();
       }, 1000);
     } catch (error) {
-      const errMsg = error.response?.data?.message || 'Login failed. Please try again.';
+      const errMsg = error.response?.data?.message || 'Verification failed. Please try again.';
       showToast(errMsg, 'error');
     } finally {
       setLoading(false);
@@ -81,50 +102,74 @@ const AdminLoginModal = ({ onClose, onSuccess }) => {
           </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block">Username</label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-400">
-                <FaUser className="text-xs" />
-              </span>
-              <input
-                type="text"
-                placeholder="Enter username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-11 pr-4 text-white text-xs placeholder-gray-500 focus:outline-none focus:border-forest-500"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block">Password</label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-400">
-                <FaLock className="text-xs" />
-              </span>
-              <input
-                type="password"
-                placeholder="Enter password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-11 pr-4 text-white text-xs placeholder-gray-500 focus:outline-none focus:border-forest-500"
-                required
-              />
-            </div>
-          </div>
-
+        {/* Back Button (Only on Step 2) */}
+        {step === 2 && (
           <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3.5 bg-forest-800 hover:bg-forest-700 text-white rounded-2xl font-bold transition-all shadow-lg border border-forest-600/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-xs uppercase tracking-wider mt-4"
+            onClick={() => { setStep(1); setOtp(''); }}
+            className="flex items-center gap-2 text-xs font-semibold text-gray-400 hover:text-white mb-6 transition-colors cursor-pointer"
           >
-            {loading ? 'Authenticating...' : 'Sign In'}
+            <FaArrowLeft /> Edit Phone Number
           </button>
-        </form>
+        )}
+
+        {/* Step 1: Send OTP Form */}
+        {step === 1 ? (
+          <form onSubmit={handleSendOTP} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block">Phone Number</label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-400">
+                  <FaPhone className="text-xs" />
+                </span>
+                <input
+                  type="tel"
+                  placeholder="e.g. +919999999999"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-11 pr-4 text-white text-xs placeholder-gray-500 focus:outline-none focus:border-forest-500"
+                  required
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 bg-forest-800 hover:bg-forest-700 text-white rounded-2xl font-bold transition-all shadow-lg border border-forest-600/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-xs uppercase tracking-wider mt-4"
+            >
+              {loading ? 'Sending OTP...' : 'Send OTP'}
+            </button>
+          </form>
+        ) : (
+          /* Step 2: Verify OTP Form */
+          <form onSubmit={handleVerifyOTP} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block">Enter OTP Code</label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-400">
+                  <FaLock className="text-xs" />
+                </span>
+                <input
+                  type="text"
+                  maxLength="6"
+                  placeholder="Enter 6-digit OTP"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-11 pr-4 text-white text-xs placeholder-gray-500 focus:outline-none focus:border-forest-500 text-center font-bold tracking-widest"
+                  required
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 bg-forest-800 hover:bg-forest-700 text-white rounded-2xl font-bold transition-all shadow-lg border border-forest-600/30 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-xs uppercase tracking-wider mt-4"
+            >
+              {loading ? 'Verifying...' : 'Verify & Sign In'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
