@@ -74,9 +74,8 @@ const verifyOTP = async (req, res) => {
     if (error) {
       return res.status(400).json({ message: 'Incorrect or expired OTP code' });
     }
-    // 3. Generate a local JWT (so existing authMiddleware remains compatible)
-    // Alternatively, you can use the access token provided in `data.session.access_token`
-    const token = generateToken(admin._id);
+    // 3. Use the access token provided in `data.session.access_token`
+    const token = data.session.access_token;
     res.json({
       _id: admin._id,
       phoneNumber: admin.phoneNumber,
