@@ -2,10 +2,11 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
-const { seedAdmin } = require('./controllers/authController');
 
 // Load environment variables
 dotenv.config();
+
+const { seedAdmin } = require('./controllers/authController');
 
 // Seed admin account directly on startup into the JSON file database
 seedAdmin();
