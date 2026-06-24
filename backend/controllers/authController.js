@@ -1,6 +1,19 @@
 const jwt = require('jsonwebtoken');
 const { readData, writeData, generateId } = require('../config/jsonDb');
 
+// Helper to normalize phone numbers (e.g. clean spaces/formatting, prepend +91 for 10-digit Indian numbers)
+const normalizePhoneNumber = (phone) => {
+  if (!phone) return '';
+  let cleaned = phone.replace(/[^\d+]/g, '');
+  if (cleaned.length === 10 && /^\d+$/.test(cleaned)) {
+    return `+91${cleaned}`;
+  }
+  if (cleaned.length === 12 && cleaned.startsWith('91')) {
+    return `+${cleaned}`;
+  }
+  return cleaned;
+};
+
 // Generate JWT token
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -18,9 +31,11 @@ const sendOTP = async (req, res) => {
     return res.status(400).json({ message: 'Phone number is required' });
   }
 
+  const normalizedPhone = normalizePhoneNumber(phoneNumber);
+
   try {
     const admins = readData('admins');
-    const admin = admins.find(a => a.phoneNumber === phoneNumber);
+    const admin = admins.find(a => normalizePhoneNumber(a.phoneNumber) === normalizedPhone);
 
     if (!admin) {
       return res.status(404).json({ message: 'Phone number is not registered as Admin' });
@@ -56,9 +71,11 @@ const verifyOTP = async (req, res) => {
     return res.status(400).json({ message: 'Phone number and OTP are required' });
   }
 
+  const normalizedPhone = normalizePhoneNumber(phoneNumber);
+
   try {
     const admins = readData('admins');
-    const admin = admins.find(a => a.phoneNumber === phoneNumber);
+    const admin = admins.find(a => normalizePhoneNumber(a.phoneNumber) === normalizedPhone);
 
     if (!admin || !admin.otp) {
       return res.status(400).json({ message: 'Invalid request or OTP not generated' });
@@ -104,7 +121,8 @@ const getMe = async (req, res) => {
 const seedAdmin = async () => {
   try {
     // Falls back to a mock default phone number if not defined in .env
-    const phoneNumber = process.env.ADMIN_PHONE || '+919999999999';
+    const rawPhoneNumber = process.env.ADMIN_PHONE || '+919999999999';
+    const phoneNumber = normalizePhoneNumber(rawPhoneNumber);
 
     const admins = readData('admins');
 
