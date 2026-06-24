@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
 const { readData, writeData, generateId } = require('../config/jsonDb');
-const supabase = require('../config/supabase');
 
 // Helper to normalize phone numbers (e.g. clean spaces/formatting, prepend +91 for 10-digit Indian numbers)
 const normalizePhoneNumber = (phone) => {
@@ -22,65 +21,85 @@ const generateToken = (id) => {
   });
 };
 
-// @desc    Send OTP to phone using Supabase
+// @desc    Generate and "send" OTP to phone
 // @route   POST /api/auth/send-otp
+// @access  Public
 const sendOTP = async (req, res) => {
   const { phoneNumber } = req.body;
+
   if (!phoneNumber) {
     return res.status(400).json({ message: 'Phone number is required' });
   }
+
   const normalizedPhone = normalizePhoneNumber(phoneNumber);
+
   try {
-    // 1. Verify this phone is allowed to log in as an Admin locally
     const admins = readData('admins');
     const admin = admins.find(a => normalizePhoneNumber(a.phoneNumber) === normalizedPhone);
+
     if (!admin) {
       return res.status(404).json({ message: 'Phone number is not registered as Admin' });
     }
-    // 2. Request Supabase to send a SMS OTP
-    const { data, error } = await supabase.auth.signInWithOtp({
-      phone: normalizedPhone,
-    });
-    if (error) {
-      return res.status(400).json({ message: 'Supabase Error: ' + error.message });
-    }
+
+    // Generate 6-digit OTP code
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5-minute expiry
+
+    // Save the OTP details to the JSON database
+    admin.otp = otp;
+    admin.otpExpiresAt = otpExpiresAt;
+    writeData('admins', admins);
+
+    // MOCK SMS: Output OTP to console log for copy-pasting
+    console.log(`\n===================================`);
+    console.log(`[SMS SEND MOCK] OTP for admin: ${otp}`);
+    console.log(`===================================\n`);
+
     res.json({ message: 'OTP sent successfully to your mobile number' });
   } catch (error) {
     res.status(500).json({ message: 'Server error: ' + error.message });
   }
 };
 
-// @desc    Verify OTP with Supabase & authenticate
+// @desc    Verify OTP & sign token
 // @route   POST /api/auth/verify-otp
+// @access  Public
 const verifyOTP = async (req, res) => {
   const { phoneNumber, otp } = req.body;
+
   if (!phoneNumber || !otp) {
     return res.status(400).json({ message: 'Phone number and OTP are required' });
   }
+
   const normalizedPhone = normalizePhoneNumber(phoneNumber);
+
   try {
-    // 1. Find local admin profile
     const admins = readData('admins');
     const admin = admins.find(a => normalizePhoneNumber(a.phoneNumber) === normalizedPhone);
-    if (!admin) {
-      return res.status(400).json({ message: 'Invalid request' });
+
+    if (!admin || !admin.otp) {
+      return res.status(400).json({ message: 'Invalid request or OTP not generated' });
     }
-    // 2. Validate OTP using Supabase
-    const { data, error } = await supabase.auth.verifyOtp({
-      phone: normalizedPhone,
-      token: otp,
-      type: 'sms',
-    });
-    if (error) {
-      return res.status(400).json({ message: 'Incorrect or expired OTP code' });
+
+    // Check expiry
+    if (new Date() > new Date(admin.otpExpiresAt)) {
+      return res.status(400).json({ message: 'OTP has expired. Please request a new one' });
     }
-    // 3. Use the access token provided in `data.session.access_token`
-    const token = data.session.access_token;
+
+    // Check match
+    if (admin.otp !== otp) {
+      return res.status(400).json({ message: 'Incorrect OTP code' });
+    }
+
+    // Clear OTP on successful login
+    admin.otp = null;
+    admin.otpExpiresAt = null;
+    writeData('admins', admins);
+
     res.json({
       _id: admin._id,
       phoneNumber: admin.phoneNumber,
-      token: token,
-      supabaseUser: data.user // Useful if you want profile metadata
+      token: generateToken(admin._id),
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error: ' + error.message });

@@ -1,4 +1,4 @@
-const supabase = require('../config/supabase');
+const jwt = require('jsonwebtoken');
 const { readData } = require('../config/jsonDb');
 
 const protectAdmin = async (req, res, next) => {
@@ -12,22 +12,12 @@ const protectAdmin = async (req, res, next) => {
       // Get token from header
       token = req.headers.authorization.split(' ')[1];
 
-      // Verify token directly with Supabase
-      const { data: { user }, error } = await supabase.auth.getUser(token);
+      // Verify token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      if (error || !user) {
-        return res.status(401).json({ message: 'Not authorized, token verification failed' });
-      }
-
-      // Find the local admin using the user's phone number
-      const normalizedPhone = user.phone;
+      // Get admin from the local JSON file database
       const admins = readData('admins');
-      
-      const admin = admins.find(u => {
-        const p1 = u.phoneNumber ? u.phoneNumber.replace(/[^\d+]/g, '') : '';
-        const p2 = normalizedPhone ? normalizedPhone.replace(/[^\d+]/g, '') : '';
-        return p1 === p2;
-      });
+      const admin = admins.find(u => u._id === decoded.id);
 
       if (!admin) {
         return res.status(401).json({ message: 'Not authorized, admin user not found' });
@@ -39,7 +29,7 @@ const protectAdmin = async (req, res, next) => {
 
       next();
     } catch (error) {
-      console.error('Supabase token verification error:', error);
+      console.error('JWT Verification Error:', error);
       return res.status(401).json({ message: 'Not authorized, token verification failed' });
     }
   }
