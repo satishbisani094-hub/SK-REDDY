@@ -7,7 +7,7 @@ import {
 import { 
   isAuthenticated, getTours, createTour, updateTour, deleteTour, 
   getGalleryItems, createGalleryItems, deleteGalleryItem, 
-  getEnquiries, deleteEnquiry, getImageUrl 
+  getEnquiries, deleteEnquiry, getImageUrl, getDbStatus
 } from '../services/api';
 import AdminLayout from '../components/AdminLayout';
 import Toast from '../components/Toast';
@@ -29,6 +29,7 @@ const AdminDashboard = ({ onViewChange, onLogout }) => {
   const [galleryList, setGalleryList] = useState([]);
   const [enquiriesList, setEnquiriesList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isMongoConnected, setIsMongoConnected] = useState(true);
 
   // Forms state
   const [tourFormOpen, setTourFormOpen] = useState(false);
@@ -72,6 +73,13 @@ const AdminDashboard = ({ onViewChange, onLogout }) => {
       const tours = await getTours();
       const gallery = await getGalleryItems();
       const enquiries = await getEnquiries();
+
+      try {
+        const dbStatus = await getDbStatus();
+        setIsMongoConnected(dbStatus.isMongoConnected);
+      } catch (err) {
+        console.error('Failed to fetch database connection status:', err);
+      }
 
       const toursArray = Array.isArray(tours) ? tours : [];
       const galleryArray = Array.isArray(gallery) ? gallery : [];
@@ -267,6 +275,17 @@ const AdminDashboard = ({ onViewChange, onLogout }) => {
           type={toast.type}
           onClose={() => setToast(null)}
         />
+      )}
+
+      {!isMongoConnected && (
+        <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <span className="text-sm font-bold text-amber-400 block">⚠️ Local JSON DB Mode Active</span>
+            <span className="text-xs text-gray-300 block leading-relaxed">
+              The backend is running with local JSON files as a fallback. Any newly added adventures, gallery items, or deleted records will <strong>not persist</strong> permanently in cloud/serverless environments (like Vercel). To enable permanent saving, please ensure a valid <code>MONGODB_URI</code> is set in your environment variables.
+            </span>
+          </div>
+        </div>
       )}
 
       {loading ? (

@@ -123,3 +123,8 @@ export const getImageUrl = (imagePath) => {
   return `${baseUrl}/${imagePath}`;
 };
 
+export const getDbStatus = async () => {
+  const response = await api.get('/auth/status');
+  return response.data;
+};
+

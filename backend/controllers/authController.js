@@ -75,8 +75,9 @@ const seedAdmin = async () => {
       const count = await Admin.countDocuments();
       
       if (count === 0) {
-        // Create new admin (Admin.js pre-save hook will hash password automatically)
+        // Create new admin with fixed ID matching local JSON DB
         await Admin.create({
+          _id: "6a38e9f3ca8f37ad00a223aa",
           username,
           password
         });
