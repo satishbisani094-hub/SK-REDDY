@@ -73,19 +73,23 @@ const AdminDashboard = ({ onViewChange, onLogout }) => {
       const gallery = await getGalleryItems();
       const enquiries = await getEnquiries();
 
-      setToursList(tours);
-      setGalleryList(gallery);
-      setEnquiriesList(enquiries);
+      const toursArray = Array.isArray(tours) ? tours : [];
+      const galleryArray = Array.isArray(gallery) ? gallery : [];
+      const enquiriesArray = Array.isArray(enquiries) ? enquiries : [];
+
+      setToursList(toursArray);
+      setGalleryList(galleryArray);
+      setEnquiriesList(enquiriesArray);
 
       // Calculate stats
       const today = new Date();
-      const upcoming = tours.filter(t => new Date(t.tourDate) >= today).length;
+      const upcoming = toursArray.filter(t => new Date(t.tourDate) >= today).length;
 
       setStats({
-        totalTours: tours.length,
+        totalTours: toursArray.length,
         upcomingTours: upcoming,
-        galleryImages: gallery.length,
-        totalEnquiries: enquiries.length
+        galleryImages: galleryArray.length,
+        totalEnquiries: enquiriesArray.length
       });
     } catch (error) {
       showToast('Error loading dashboard data', 'error');

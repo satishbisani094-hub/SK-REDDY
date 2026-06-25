@@ -14,9 +14,15 @@ const Gallery = () => {
       setLoading(true);
       try {
         const data = await getGalleryItems(category);
-        setItems(data);
+        if (Array.isArray(data)) {
+          setItems(data);
+        } else {
+          console.error('Expected array of gallery items, received:', data);
+          setItems([]);
+        }
       } catch (error) {
         console.error('Error fetching gallery:', error);
+        setItems([]);
       } finally {
         setLoading(false);
       }

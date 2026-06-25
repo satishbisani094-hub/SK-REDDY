@@ -14,9 +14,15 @@ const Tours = ({ onViewDetails }) => {
     setLoading(true);
     try {
       const data = await getTours(search, difficulty);
-      setTours(data);
+      if (Array.isArray(data)) {
+        setTours(data);
+      } else {
+        console.error('Expected array of tours, received:', data);
+        setTours([]);
+      }
     } catch (error) {
       console.error('Error fetching tours:', error);
+      setTours([]);
     } finally {
       setLoading(false);
     }
