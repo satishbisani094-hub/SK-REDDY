@@ -35,7 +35,7 @@ const About = () => {
         <div className="lg:col-span-5 relative">
           <div className="rounded-3xl overflow-hidden shadow-2xl aspect-[3/4] max-w-md mx-auto border border-white/5 relative">
             <img
-              src="https://images.unsplash.com/photo-1533240332313-0db49b439ad3?auto=format&fit=crop&w=800&q=80"
+              src="/sk-reddy-profile.jpg"
               alt="SK Reddy Guide Portrait"
               className="w-full h-full object-cover brightness-[0.9]"
             />
