@@ -4,7 +4,7 @@ const { prisma } = require('../config/db');
 
 // Generate JWT token
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
+  return jwt.sign({ id }, process.env.JWT_SECRET || 'supersecretadventurekey12345', {
     expiresIn: '30d',
   });
 };

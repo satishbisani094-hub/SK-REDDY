@@ -20,6 +20,26 @@ api.interceptors.request.use(
   }
 );
 
+// Response interceptor to handle token expiration/failures
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Don't redirect/reload for login requests
+      if (error.config && !error.config.url.endsWith('/auth/login')) {
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminUser');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Auth Services
 export const login = async (username, password) => {
   const response = await api.post('/auth/login', { username, password });
