@@ -6,6 +6,11 @@ const dotenv = require('dotenv');
 // Load environment variables immediately before any other local imports
 dotenv.config({ path: path.join(__dirname, '.env') });
 
+// Fallback to local SQLite database if DATABASE_URL is not configured in env
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = `file:${path.resolve(__dirname, 'prisma', 'dev.db')}`;
+}
+
 const { connectDB } = require('./config/db');
 const { seedAdmin } = require('./controllers/authController');
 
