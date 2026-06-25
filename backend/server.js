@@ -6,37 +6,9 @@ const dotenv = require('dotenv');
 // Load environment variables immediately before any other local imports
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-// Force /tmp path for SQLite in serverless production environments (like Vercel)
-if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-  const dbUrl = process.env.DATABASE_URL || '';
-  if (!dbUrl || dbUrl.startsWith('file:')) {
-    process.env.DATABASE_URL = 'file:/tmp/dev.db';
-  }
-} else if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = `file:${path.resolve(__dirname, 'prisma', 'dev.db')}`;
-}
-
-// In serverless environments, copy SQLite template database to /tmp if it doesn't exist
-const fs = require('fs');
-if (process.env.DATABASE_URL.startsWith('file:/tmp/')) {
-  const dbPath = process.env.DATABASE_URL.replace('file:', '');
-  if (!fs.existsSync(dbPath)) {
-    const templatePath = path.resolve(__dirname, 'prisma', 'prod_template.db');
-    if (fs.existsSync(templatePath)) {
-      try {
-        const tempDir = path.dirname(dbPath);
-        if (!fs.existsSync(tempDir)) {
-          fs.mkdirSync(tempDir, { recursive: true });
-        }
-        fs.copyFileSync(templatePath, dbPath);
-        console.log('Production SQLite database initialized from template.');
-      } catch (err) {
-        console.error('Failed to copy database template:', err);
-      }
-    } else {
-      console.warn('Database template prod_template.db not found.');
-    }
-  }
+// Validate that DATABASE_URL is configured
+if (!process.env.DATABASE_URL) {
+  console.warn('WARNING: DATABASE_URL environment variable is not defined. Please configure a PostgreSQL connection string.');
 }
 
 const { connectDB } = require('./config/db');
