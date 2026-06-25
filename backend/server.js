@@ -2,11 +2,12 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const dotenv = require('dotenv');
+
+// Load environment variables immediately before any other local imports
+dotenv.config({ path: path.join(__dirname, '.env') });
+
 const { connectDB } = require('./config/db');
 const { seedAdmin } = require('./controllers/authController');
-
-// Load environment variables
-dotenv.config();
 
 // Connect to Database
 connectDB().then(() => {
