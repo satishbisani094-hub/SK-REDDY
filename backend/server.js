@@ -32,7 +32,7 @@ app.use('/api/enquiries', require('./routes/enquiryRoutes'));
 
 // Root path test route
 app.get('/', (req, res) => {
-  res.json({ message: 'SK Reddy Adventures API (Local JSON DB Mode) is running...' });
+  res.json({ message: 'SK Reddy Adventures API (Prisma ORM Mode) is running...' });
 });
 
 // Custom 404 Error handler

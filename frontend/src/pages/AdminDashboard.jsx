@@ -30,6 +30,7 @@ const AdminDashboard = ({ onViewChange, onLogout }) => {
   const [enquiriesList, setEnquiriesList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isMongoConnected, setIsMongoConnected] = useState(true);
+  const [dbProvider, setDbProvider] = useState('sqlite');
 
   // Forms state
   const [tourFormOpen, setTourFormOpen] = useState(false);
@@ -77,6 +78,9 @@ const AdminDashboard = ({ onViewChange, onLogout }) => {
       try {
         const dbStatus = await getDbStatus();
         setIsMongoConnected(dbStatus.isMongoConnected);
+        if (dbStatus.provider) {
+          setDbProvider(dbStatus.provider);
+        }
       } catch (err) {
         console.error('Failed to fetch database connection status:', err);
       }
@@ -278,11 +282,22 @@ const AdminDashboard = ({ onViewChange, onLogout }) => {
       )}
 
       {!isMongoConnected && (
+        <div className="mb-6 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <span className="text-sm font-bold text-rose-400 block">⚠️ Database Disconnected</span>
+            <span className="text-xs text-gray-300 block leading-relaxed">
+              The backend is unable to connect to the database. Please verify your <code>DATABASE_URL</code> in your environment variables.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {isMongoConnected && dbProvider === 'sqlite' && import.meta.env.PROD && (
         <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="space-y-1">
-            <span className="text-sm font-bold text-amber-400 block">⚠️ Local JSON DB Mode Active</span>
+            <span className="text-sm font-bold text-amber-400 block">⚠️ Ephemeral Database Active (SQLite in Production)</span>
             <span className="text-xs text-gray-300 block leading-relaxed">
-              The backend is running with local JSON files as a fallback. Any newly added adventures, gallery items, or deleted records will <strong>not persist</strong> permanently in cloud/serverless environments (like Vercel). To enable permanent saving, please ensure a valid <code>MONGODB_URI</code> is set in your environment variables.
+              The application is currently running on a local SQLite database file in a serverless environment (like Vercel). Added tours, gallery photos, and enquiries will <strong>not persist</strong> permanently across container restarts. To enable permanent storage, configure a PostgreSQL database (e.g. Supabase, Neon) and set <code>DATABASE_URL</code> in your hosting settings.
             </span>
           </div>
         </div>
