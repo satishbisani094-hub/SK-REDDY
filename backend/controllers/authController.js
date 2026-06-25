@@ -15,21 +15,26 @@ const loginAdmin = async (req, res) => {
   const { username, password } = req.body;
 
   try {
+    const trimmedUsername = username ? username.trim() : '';
+    const trimmedPassword = password ? password.trim() : '';
+
     let admin;
     let isMatch = false;
 
     if (global.isMongoConnected) {
-      admin = await Admin.findOne({ username });
+      admin = await Admin.findOne({ 
+        username: { $regex: new RegExp('^' + trimmedUsername + '$', 'i') } 
+      });
       if (admin) {
-        isMatch = await admin.matchPassword(password);
+        isMatch = await admin.matchPassword(trimmedPassword);
       }
     } else {
       const { readData } = require('../config/jsonDb');
       const bcrypt = require('bcryptjs');
       const admins = readData('admins');
-      admin = admins.find(a => a.username === username);
+      admin = admins.find(a => a.username && a.username.trim().toLowerCase() === trimmedUsername.toLowerCase());
       if (admin) {
-        isMatch = await bcrypt.compare(password, admin.password);
+        isMatch = await bcrypt.compare(trimmedPassword, admin.password);
       }
     }
 
@@ -62,8 +67,8 @@ const getMe = async (req, res) => {
 // Seed default admin account
 const seedAdmin = async () => {
   try {
-    const username = process.env.ADMIN_USERNAME || 'skreddy';
-    const password = process.env.ADMIN_PASSWORD || 'skreddy#1234';
+    const username = (process.env.ADMIN_USERNAME || 'skreddy').trim();
+    const password = (process.env.ADMIN_PASSWORD || 'skreddy#1234').trim();
     const bcrypt = require('bcryptjs');
     
     if (global.isMongoConnected) {
