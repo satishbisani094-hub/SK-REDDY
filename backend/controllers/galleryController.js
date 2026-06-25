@@ -30,7 +30,8 @@ const getGalleryItems = async (req, res) => {
 
     res.json(items.map(mapGallery));
   } catch (error) {
-    res.status(500).json({ message: 'Server error: ' + error.message });
+    console.error('Error fetching gallery:', error);
+    res.json([]);
   }
 };
 

@@ -39,7 +39,8 @@ const getTours = async (req, res) => {
 
     res.json(tours.map(mapTour));
   } catch (error) {
-    res.status(500).json({ message: 'Server error: ' + error.message });
+    console.error('Error fetching tours:', error);
+    res.json([]);
   }
 };
 

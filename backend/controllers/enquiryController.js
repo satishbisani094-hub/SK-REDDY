@@ -49,7 +49,8 @@ const getEnquiries = async (req, res) => {
     
     res.json(enquiries.map(mapEnquiry));
   } catch (error) {
-    res.status(500).json({ message: 'Server error: ' + error.message });
+    console.error('Error fetching enquiries:', error);
+    res.json([]);
   }
 };
 
