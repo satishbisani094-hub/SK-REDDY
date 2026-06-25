@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const DB_URL = 'https://api.npoint.io/3d0b82f712fd2b750b56';
-const ADMIN_NUMBERS = ['8520016332', '9000012345', '7989245079'];
+const ADMIN_NUMBERS = ['8520016332', '9686671493'];
 
 // Helper to fetch all data from npoint.io JSON bin
 const fetchAllData = async () => {

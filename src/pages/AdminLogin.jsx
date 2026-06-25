@@ -4,7 +4,7 @@ import { FaMobileAlt, FaCompass, FaCheckCircle, FaExclamationTriangle, FaLock } 
 import { login, isAuthenticated } from '../services/api';
 import Toast from '../components/Toast';
 
-const ADMIN_NUMBERS = ['8520016332', '9000012345', '7989245079'];
+const ADMIN_NUMBERS = ['8520016332', '9686671493'];
 
 const isValidPhoneNumber = (num) => {
   const clean = num.replace(/\D/g, '');
