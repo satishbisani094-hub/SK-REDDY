@@ -1,55 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { FaCompass, FaArrowRight, FaRoute, FaImages } from 'react-icons/fa';
-import { getTours, getGalleryItems, getImageUrl } from '../services/api';
-import TourCard from '../components/TourCard';
-import { TourCardSkeleton } from '../components/SkeletonLoader';
+import { FaCompass, FaArrowRight } from 'react-icons/fa';
+import Contact from './Contact';
 
 const Home = () => {
-  const [tours, setTours] = useState([]);
-  const [gallery, setGallery] = useState([]);
-  const [loading, setLoading] = useState(true);
-
   const stats = [
     { value: '100+', label: 'Tours Completed' },
     { value: '500+', label: 'Travelers Guided' },
     { value: '20+', label: 'Destinations' },
     { value: '10+', label: 'Years Experience' }
   ];
-
-  const syncData = async () => {
-    try {
-      const toursData = await getTours();
-      const galleryData = await getGalleryItems();
-      if (Array.isArray(toursData)) setTours(toursData);
-      if (Array.isArray(galleryData)) setGallery(galleryData);
-    } catch (err) {
-      console.error('Error syncing home data:', err);
-    }
-  };
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      await syncData();
-      setLoading(false);
-    };
-    fetchData();
-
-    // Sync data every 15 seconds in the background
-    const interval = setInterval(syncData, 15000);
-
-    // Sync data when the user focuses the tab
-    const handleFocus = () => {
-      syncData();
-    };
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, []);
 
   return (
     <div className="space-y-4">
@@ -114,100 +74,25 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Section 2: About Preview */}
-      <section className="py-20 max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center border-b border-white/5">
-        <div className="lg:col-span-5 relative">
-          <div className="rounded-3xl overflow-hidden shadow-2xl aspect-[4/3] border border-white/5 relative">
-            <img
-              src="https://images.unsplash.com/photo-1533240332313-0db49b439ad3?auto=format&fit=crop&w=800&q=80"
-              alt="SK Reddy Guide"
-              className="w-full h-full object-cover"
-            />
-          </div>
-        </div>
-        <div className="lg:col-span-7 space-y-6">
-          <span className="text-xs uppercase tracking-widest font-bold text-forest-500">Who We Are</span>
-          <h2 className="text-3xl md:text-5xl font-black text-white">Leading with Experience & Passion</h2>
-          <p className="text-sm text-gray-400 leading-relaxed">
-            SK Reddy is an avid mountaineer, certified search-and-rescue specialist, and professional nature photographer. Growing up near the Western Ghats, his love for wilderness started early. Over the past decade, this passion has transformed into a commitment to showing others the majestic beauty of the world's most remote locations.
-          </p>
-          <div className="pt-2">
-            <Link to="/about" className="inline-flex items-center gap-2 text-sm font-bold text-forest-500 hover:text-white transition-colors">
-              Learn More About Us <FaArrowRight className="text-xs" />
-            </Link>
-          </div>
-        </div>
-      </section>
+      {/* Section 2: Contact Information & Forms */}
+      <section id="contact" className="space-y-16 pb-12">
+        <Contact />
 
-      {/* Section 3: Featured Upcoming Tours */}
-      <section className="py-20 max-w-7xl mx-auto px-6 space-y-12 border-b border-white/5">
-        <div className="text-center space-y-4">
-          <span className="text-xs uppercase tracking-widest font-bold text-forest-500">Featured Trips</span>
-          <h2 className="text-3xl md:text-5xl font-black text-white">Popular Upcoming Tours</h2>
-        </div>
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[1, 2, 3].map(n => <TourCardSkeleton key={n} />)}
+        {/* Integrated Base Office Map */}
+        <div className="max-w-7xl mx-auto px-6 space-y-6">
+          <h3 className="text-lg font-bold text-white border-l-2 border-forest-500 pl-3">Find Our Base Office</h3>
+          <div className="glass rounded-3xl overflow-hidden h-[350px] border border-white/5 shadow-xl relative">
+            <iframe
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3887.925769719339!2d77.59374027581534!3d12.976593987339178!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3bae1672c1012c5f%3A0xf58839de8ca09e86!2sM%20G%20Road%2C%20Bengaluru%2C%20Karnataka!5e0!3m2!1sen!2sin!4v1714123456789!5m2!1sen!2sin"
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              allowFullScreen=""
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              title="SK Reddy Adventures Location Map"
+            ></iframe>
           </div>
-        ) : tours.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center">No upcoming tours found.</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {tours.slice(0, 3).map(tour => (
-              <TourCard key={tour._id} tour={tour} />
-            ))}
-          </div>
-        )}
-        <div className="text-center pt-4">
-          <Link to="/tours" className="inline-flex items-center gap-2 px-6 py-3.5 bg-forest-800 hover:bg-forest-700 text-white rounded-xl font-bold transition-all border border-forest-600/20 text-xs uppercase tracking-wider">
-            View All Tours <FaArrowRight className="text-[10px]" />
-          </Link>
-        </div>
-      </section>
-
-      {/* Section 4: Photo Gallery Preview */}
-      <section className="py-20 max-w-7xl mx-auto px-6 space-y-12 border-b border-white/5">
-        <div className="text-center space-y-4">
-          <span className="text-xs uppercase tracking-widest font-bold text-forest-500">Expedition Records</span>
-          <h2 className="text-3xl md:text-5xl font-black text-white">Memories & Snapshots</h2>
-        </div>
-        {loading ? (
-          <p className="text-sm text-gray-400 text-center">Loading gallery...</p>
-        ) : gallery.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center">No photos available.</p>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {gallery.slice(0, 4).map(item => (
-              <div key={item._id} className="relative rounded-2xl overflow-hidden aspect-square border border-white/5 group shadow-lg">
-                <img
-                  src={getImageUrl(item.image)}
-                  alt={item.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-dark-bg/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-4 flex flex-col justify-end">
-                  <h4 className="font-bold text-white text-xs leading-snug">{item.title}</h4>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        <div className="text-center pt-4">
-          <Link to="/gallery" className="inline-flex items-center gap-2 px-6 py-3.5 bg-forest-800 hover:bg-forest-700 text-white rounded-xl font-bold transition-all border border-forest-600/20 text-xs uppercase tracking-wider">
-            View Full Gallery <FaArrowRight className="text-[10px]" />
-          </Link>
-        </div>
-      </section>
-
-      {/* Section 5: Call to Action */}
-      <section className="py-20 max-w-5xl mx-auto px-6 text-center space-y-8">
-        <h2 className="text-3xl md:text-5xl font-black text-white">Ready to Start Your Next Adventure?</h2>
-        <p className="text-sm text-gray-400 max-w-xl mx-auto leading-relaxed">
-          Contact SK Reddy Adventures today to reserve slots on upcoming treks, custom campsite bookings, or group outings.
-        </p>
-        <div className="pt-4">
-          <Link to="/contact" className="inline-flex items-center gap-2 px-8 py-4 bg-forest-800 hover:bg-forest-700 text-white rounded-2xl font-bold transition-all shadow-lg border border-forest-600/30 text-sm">
-            Get In Touch <FaArrowRight className="text-xs" />
-          </Link>
         </div>
       </section>
 
