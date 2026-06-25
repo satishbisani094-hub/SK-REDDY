@@ -90,3 +90,7 @@ $RECYCLE.BIN/
 # Frontend production builds
 frontend/dist/
 dist/
+
+# Prisma SQLite databases
+*.db
+*.db-journal

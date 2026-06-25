@@ -1,4 +1,13 @@
-const Gallery = require('../models/Gallery');
+const { prisma } = require('../config/db');
+
+// Helper to format gallery item to frontend format
+const mapGallery = (item) => {
+  if (!item) return null;
+  return {
+    ...item,
+    _id: item.id
+  };
+};
 
 // @desc    Get all gallery images
 // @route   GET /api/gallery
@@ -7,23 +16,19 @@ const getGalleryItems = async (req, res) => {
   const { category } = req.query;
 
   try {
-    let items;
-    if (global.isMongoConnected) {
-      const query = {};
-      if (category && category !== 'All') {
-        query.category = category;
-      }
-      items = await Gallery.find(query).sort({ createdAt: -1 });
-    } else {
-      const { readData } = require('../config/jsonDb');
-      items = readData('gallery');
-      if (category && category !== 'All') {
-        items = items.filter(item => item.category === category);
-      }
-      items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const conditions = {};
+    if (category && category !== 'All') {
+      conditions.category = category;
     }
 
-    res.json(items);
+    const items = await prisma.gallery.findMany({
+      where: conditions,
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    res.json(items.map(mapGallery));
   } catch (error) {
     res.status(500).json({ message: 'Server error: ' + error.message });
   }
@@ -50,39 +55,19 @@ const createGalleryItems = async (req, res) => {
       parsedImages = image.split(',').map(url => url.trim()).filter(Boolean);
     }
 
-    if (global.isMongoConnected) {
-      // Save each image URL to MongoDB
-      for (let i = 0; i < parsedImages.length; i++) {
-        const imgUrl = parsedImages[i];
-        const itemTitle = parsedImages.length > 1 ? `${title} (${i + 1})` : title;
+    // Save each image URL using Prisma
+    for (let i = 0; i < parsedImages.length; i++) {
+      const imgUrl = parsedImages[i];
+      const itemTitle = parsedImages.length > 1 ? `${title} (${i + 1})` : title;
 
-        const newItem = await Gallery.create({
+      const newItem = await prisma.gallery.create({
+        data: {
           title: itemTitle || `Adventure Photo`,
           category,
           image: imgUrl
-        });
-        createdItems.push(newItem);
-      }
-    } else {
-      const { readData, writeData, generateId } = require('../config/jsonDb');
-      const items = readData('gallery');
-      
-      for (let i = 0; i < parsedImages.length; i++) {
-        const imgUrl = parsedImages[i];
-        const itemTitle = parsedImages.length > 1 ? `${title} (${i + 1})` : title;
-
-        const newItem = {
-          _id: generateId(),
-          title: itemTitle || `Adventure Photo`,
-          category,
-          image: imgUrl,
-          createdAt: new Date().toISOString()
-        };
-
-        items.push(newItem);
-        createdItems.push(newItem);
-      }
-      writeData('gallery', items);
+        }
+      });
+      createdItems.push(mapGallery(newItem));
     }
 
     res.status(201).json(createdItems);
@@ -96,26 +81,17 @@ const createGalleryItems = async (req, res) => {
 // @access  Private/Admin
 const deleteGalleryItem = async (req, res) => {
   try {
-    if (global.isMongoConnected) {
-      const item = await Gallery.findById(req.params.id);
+    const item = await prisma.gallery.findUnique({
+      where: { id: req.params.id }
+    });
 
-      if (!item) {
-        return res.status(404).json({ message: 'Gallery item not found' });
-      }
-
-      await item.deleteOne();
-    } else {
-      const { readData, writeData } = require('../config/jsonDb');
-      const items = readData('gallery');
-      const item = items.find(i => i._id === req.params.id);
-
-      if (!item) {
-        return res.status(404).json({ message: 'Gallery item not found' });
-      }
-
-      const updatedItems = items.filter(i => i._id !== req.params.id);
-      writeData('gallery', updatedItems);
+    if (!item) {
+      return res.status(404).json({ message: 'Gallery item not found' });
     }
+
+    await prisma.gallery.delete({
+      where: { id: req.params.id }
+    });
 
     res.json({ message: 'Gallery item deleted successfully' });
   } catch (error) {

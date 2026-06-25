@@ -1,4 +1,13 @@
-const Enquiry = require('../models/Enquiry');
+const { prisma } = require('../config/db');
+
+// Helper to format enquiry to frontend format
+const mapEnquiry = (enq) => {
+  if (!enq) return null;
+  return {
+    ...enq,
+    _id: enq.id
+  };
+};
 
 const createEnquiry = async (req, res) => {
   const { name, phone, email, message } = req.body;
@@ -8,33 +17,19 @@ const createEnquiry = async (req, res) => {
   }
 
   try {
-    let newEnquiry;
-    if (global.isMongoConnected) {
-      newEnquiry = await Enquiry.create({
+    const newEnquiry = await prisma.enquiry.create({
+      data: {
         name,
         phone,
         email,
         message
-      });
-    } else {
-      const { readData, writeData, generateId } = require('../config/jsonDb');
-      const enquiries = readData('enquiries');
-      newEnquiry = {
-        _id: generateId(),
-        name,
-        phone,
-        email,
-        message,
-        createdAt: new Date().toISOString()
-      };
-      enquiries.push(newEnquiry);
-      writeData('enquiries', enquiries);
-    }
+      }
+    });
 
     res.status(201).json({
       success: true,
       message: 'Enquiry submitted successfully! We will get back to you soon.',
-      data: newEnquiry
+      data: mapEnquiry(newEnquiry)
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error: ' + error.message });
@@ -46,16 +41,13 @@ const createEnquiry = async (req, res) => {
 // @access  Private/Admin
 const getEnquiries = async (req, res) => {
   try {
-    let enquiries;
-    if (global.isMongoConnected) {
-      enquiries = await Enquiry.find().sort({ createdAt: -1 });
-    } else {
-      const { readData } = require('../config/jsonDb');
-      enquiries = readData('enquiries');
-      enquiries.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    }
+    const enquiries = await prisma.enquiry.findMany({
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
     
-    res.json(enquiries);
+    res.json(enquiries.map(mapEnquiry));
   } catch (error) {
     res.status(500).json({ message: 'Server error: ' + error.message });
   }
@@ -66,26 +58,17 @@ const getEnquiries = async (req, res) => {
 // @access  Private/Admin
 const deleteEnquiry = async (req, res) => {
   try {
-    if (global.isMongoConnected) {
-      const enquiry = await Enquiry.findById(req.params.id);
+    const enquiry = await prisma.enquiry.findUnique({
+      where: { id: req.params.id }
+    });
 
-      if (!enquiry) {
-        return res.status(404).json({ message: 'Enquiry not found' });
-      }
-
-      await enquiry.deleteOne();
-    } else {
-      const { readData, writeData } = require('../config/jsonDb');
-      const enquiries = readData('enquiries');
-      const enquiry = enquiries.find(e => e._id === req.params.id);
-
-      if (!enquiry) {
-        return res.status(404).json({ message: 'Enquiry not found' });
-      }
-
-      const updatedEnquiries = enquiries.filter(e => e._id !== req.params.id);
-      writeData('enquiries', updatedEnquiries);
+    if (!enquiry) {
+      return res.status(404).json({ message: 'Enquiry not found' });
     }
+
+    await prisma.enquiry.delete({
+      where: { id: req.params.id }
+    });
 
     res.json({ message: 'Enquiry deleted successfully' });
   } catch (error) {

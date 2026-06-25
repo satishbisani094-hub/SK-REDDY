@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const Admin = require('../models/Admin');
+const { prisma } = require('../config/db');
 
 const protectAdmin = async (req, res, next) => {
   let token;
@@ -15,19 +15,16 @@ const protectAdmin = async (req, res, next) => {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Get admin from MongoDB or local JSON database
-      let admin;
-      if (global.isMongoConnected) {
-        admin = await Admin.findById(decoded.id).select('-password');
-      } else {
-        const { readData } = require('../config/jsonDb');
-        const admins = readData('admins');
-        const found = admins.find(a => a._id === decoded.id);
-        if (found) {
-          const { password, ...adminWithoutPassword } = found;
-          admin = adminWithoutPassword;
+      // Get admin from database using Prisma
+      const admin = await prisma.admin.findUnique({
+        where: { id: decoded.id },
+        select: {
+          id: true,
+          username: true,
+          createdAt: true,
+          updatedAt: true
         }
-      }
+      });
 
       if (!admin) {
         return res.status(401).json({ message: 'Not authorized, admin user not found' });

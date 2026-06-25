@@ -1,4 +1,14 @@
-const Tour = require('../models/Tour');
+const { prisma } = require('../config/db');
+
+// Helper to format tour database object to frontend format
+const mapTour = (tour) => {
+  if (!tour) return null;
+  return {
+    ...tour,
+    _id: tour.id,
+    galleryImages: tour.galleryImages ? tour.galleryImages.split(',').map(url => url.trim()).filter(Boolean) : []
+  };
+};
 
 // @desc    Get all tours with search/filter
 // @route   GET /api/tours
@@ -7,48 +17,27 @@ const getTours = async (req, res) => {
   const { search, difficulty } = req.query;
   
   try {
-    let tours;
-    if (global.isMongoConnected) {
-      const query = {};
+    const conditions = {};
 
-      // Filter by search string
-      if (search) {
-        query.$or = [
-          { title: { $regex: search, $options: 'i' } },
-          { location: { $regex: search, $options: 'i' } }
-        ];
-      }
-
-      // Filter by difficulty level
-      if (difficulty && difficulty !== 'All') {
-        query.difficulty = difficulty;
-      }
-
-      // Sort by tour date ascending
-      tours = await Tour.find(query).sort({ tourDate: 1 });
-    } else {
-      const { readData } = require('../config/jsonDb');
-      tours = readData('tours');
-
-      // Filter by search string
-      if (search) {
-        const searchLower = search.toLowerCase();
-        tours = tours.filter(t => 
-          t.title.toLowerCase().includes(searchLower) || 
-          t.location.toLowerCase().includes(searchLower)
-        );
-      }
-
-      // Filter by difficulty level
-      if (difficulty && difficulty !== 'All') {
-        tours = tours.filter(t => t.difficulty === difficulty);
-      }
-
-      // Sort by tour date ascending
-      tours.sort((a, b) => new Date(a.tourDate) - new Date(b.tourDate));
+    if (search) {
+      conditions.OR = [
+        { title: { contains: search } },
+        { location: { contains: search } }
+      ];
     }
 
-    res.json(tours);
+    if (difficulty && difficulty !== 'All') {
+      conditions.difficulty = difficulty;
+    }
+
+    const tours = await prisma.tour.findMany({
+      where: conditions,
+      orderBy: {
+        tourDate: 'asc'
+      }
+    });
+
+    res.json(tours.map(mapTour));
   } catch (error) {
     res.status(500).json({ message: 'Server error: ' + error.message });
   }
@@ -59,19 +48,14 @@ const getTours = async (req, res) => {
 // @access  Public
 const getTourById = async (req, res) => {
   try {
-    let tour;
-    if (global.isMongoConnected) {
-      tour = await Tour.findById(req.params.id);
-    } else {
-      const { readData } = require('../config/jsonDb');
-      const tours = readData('tours');
-      tour = tours.find(t => t._id === req.params.id);
-    }
+    const tour = await prisma.tour.findUnique({
+      where: { id: req.params.id }
+    });
 
     if (!tour) {
       return res.status(404).json({ message: 'Tour not found' });
     }
-    res.json(tour);
+    res.json(mapTour(tour));
   } catch (error) {
     res.status(500).json({ message: 'Server error: ' + error.message });
   }
@@ -97,10 +81,10 @@ const createTour = async (req, res) => {
         parsedGallery = galleryImages.split(',').map(url => url.trim()).filter(Boolean);
       }
     }
+    const galleryString = parsedGallery.join(',');
 
-    let newTour;
-    if (global.isMongoConnected) {
-      newTour = await Tour.create({
+    const newTour = await prisma.tour.create({
+      data: {
         title,
         location,
         description,
@@ -110,32 +94,11 @@ const createTour = async (req, res) => {
         seats: Number(seats),
         tourDate: new Date(tourDate),
         coverImage,
-        galleryImages: parsedGallery
-      });
-    } else {
-      const { readData, writeData, generateId } = require('../config/jsonDb');
-      const tours = readData('tours');
+        galleryImages: galleryString
+      }
+    });
 
-      newTour = {
-        _id: generateId(),
-        title,
-        location,
-        description,
-        duration,
-        difficulty,
-        price: Number(price),
-        seats: Number(seats),
-        tourDate: new Date(tourDate).toISOString(),
-        coverImage,
-        galleryImages: parsedGallery,
-        createdAt: new Date().toISOString()
-      };
-
-      tours.push(newTour);
-      writeData('tours', tours);
-    }
-
-    res.status(201).json(newTour);
+    res.status(201).json(mapTour(newTour));
   } catch (error) {
     res.status(500).json({ message: 'Server error: ' + error.message });
   }
@@ -148,76 +111,41 @@ const updateTour = async (req, res) => {
   try {
     const { title, location, description, duration, difficulty, price, seats, tourDate, coverImage, galleryImages } = req.body;
 
-    let updatedTour;
-    if (global.isMongoConnected) {
-      const tour = await Tour.findById(req.params.id);
+    const tour = await prisma.tour.findUnique({
+      where: { id: req.params.id }
+    });
 
-      if (!tour) {
-        return res.status(404).json({ message: 'Tour not found' });
-      }
-
-      // Update simple fields
-      if (title) tour.title = title;
-      if (location) tour.location = location;
-      if (description) tour.description = description;
-      if (duration) tour.duration = duration;
-      if (difficulty) tour.difficulty = difficulty;
-      if (price !== undefined) tour.price = Number(price);
-      if (seats !== undefined) tour.seats = Number(seats);
-      if (tourDate) tour.tourDate = new Date(tourDate);
-      if (coverImage) tour.coverImage = coverImage;
-
-      // Parse and set gallery images
-      if (galleryImages !== undefined) {
-        let parsedGallery = [];
-        if (Array.isArray(galleryImages)) {
-          parsedGallery = galleryImages;
-        } else if (typeof galleryImages === 'string') {
-          parsedGallery = galleryImages.split(',').map(url => url.trim()).filter(Boolean);
-        }
-        tour.galleryImages = parsedGallery;
-      }
-
-      updatedTour = await tour.save();
-    } else {
-      const { readData, writeData } = require('../config/jsonDb');
-      const tours = readData('tours');
-      const tourIndex = tours.findIndex(t => t._id === req.params.id);
-
-      if (tourIndex === -1) {
-        return res.status(404).json({ message: 'Tour not found' });
-      }
-
-      const tour = tours[tourIndex];
-      // Update simple fields
-      if (title) tour.title = title;
-      if (location) tour.location = location;
-      if (description) tour.description = description;
-      if (duration) tour.duration = duration;
-      if (difficulty) tour.difficulty = difficulty;
-      if (price !== undefined) tour.price = Number(price);
-      if (seats !== undefined) tour.seats = Number(seats);
-      if (tourDate) tour.tourDate = new Date(tourDate).toISOString();
-      if (coverImage) tour.coverImage = coverImage;
-
-      // Parse and set gallery images
-      if (galleryImages !== undefined) {
-        let parsedGallery = [];
-        if (Array.isArray(galleryImages)) {
-          parsedGallery = galleryImages;
-        } else if (typeof galleryImages === 'string') {
-          parsedGallery = galleryImages.split(',').map(url => url.trim()).filter(Boolean);
-        }
-        tour.galleryImages = parsedGallery;
-      }
-
-      tour.updatedAt = new Date().toISOString();
-      tours[tourIndex] = tour;
-      writeData('tours', tours);
-      updatedTour = tour;
+    if (!tour) {
+      return res.status(404).json({ message: 'Tour not found' });
     }
 
-    res.json(updatedTour);
+    const dataToUpdate = {};
+    if (title !== undefined) dataToUpdate.title = title;
+    if (location !== undefined) dataToUpdate.location = location;
+    if (description !== undefined) dataToUpdate.description = description;
+    if (duration !== undefined) dataToUpdate.duration = duration;
+    if (difficulty !== undefined) dataToUpdate.difficulty = difficulty;
+    if (price !== undefined) dataToUpdate.price = Number(price);
+    if (seats !== undefined) dataToUpdate.seats = Number(seats);
+    if (tourDate !== undefined) dataToUpdate.tourDate = new Date(tourDate);
+    if (coverImage !== undefined) dataToUpdate.coverImage = coverImage;
+
+    if (galleryImages !== undefined) {
+      let parsedGallery = [];
+      if (Array.isArray(galleryImages)) {
+        parsedGallery = galleryImages;
+      } else if (typeof galleryImages === 'string') {
+        parsedGallery = galleryImages.split(',').map(url => url.trim()).filter(Boolean);
+      }
+      dataToUpdate.galleryImages = parsedGallery.join(',');
+    }
+
+    const updatedTour = await prisma.tour.update({
+      where: { id: req.params.id },
+      data: dataToUpdate
+    });
+
+    res.json(mapTour(updatedTour));
   } catch (error) {
     res.status(500).json({ message: 'Server error: ' + error.message });
   }
@@ -228,27 +156,17 @@ const updateTour = async (req, res) => {
 // @access  Private/Admin
 const deleteTour = async (req, res) => {
   try {
-    if (global.isMongoConnected) {
-      const tour = await Tour.findById(req.params.id);
+    const tour = await prisma.tour.findUnique({
+      where: { id: req.params.id }
+    });
 
-      if (!tour) {
-        return res.status(404).json({ message: 'Tour not found' });
-      }
-
-      await tour.deleteOne();
-    } else {
-      const { readData, writeData } = require('../config/jsonDb');
-      const tours = readData('tours');
-      const tour = tours.find(t => t._id === req.params.id);
-
-      if (!tour) {
-        return res.status(404).json({ message: 'Tour not found' });
-      }
-
-      // Filter out the deleted tour
-      const updatedTours = tours.filter(t => t._id !== req.params.id);
-      writeData('tours', updatedTours);
+    if (!tour) {
+      return res.status(404).json({ message: 'Tour not found' });
     }
+
+    await prisma.tour.delete({
+      where: { id: req.params.id }
+    });
 
     res.json({ message: 'Tour deleted successfully' });
   } catch (error) {

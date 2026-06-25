@@ -1,24 +1,17 @@
-const mongoose = require('mongoose');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 const connectDB = async () => {
   try {
-    if (!process.env.MONGODB_URI) {
-      console.log('MONGODB_URI not provided. Falling back to Local JSON DB Mode.');
-      global.isMongoConnected = false;
-      return false;
-    }
-    // Set a short serverSelectionTimeoutMS so local runs don't hang for 30s
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 3000
-    });
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
-    global.isMongoConnected = true;
+    await prisma.$connect();
+    console.log('Database Connected successfully via Prisma.');
+    global.isDbConnected = true;
     return true;
   } catch (error) {
-    console.error(`MongoDB Connection Failed: ${error.message}. Falling back to Local JSON DB Mode.`);
-    global.isMongoConnected = false;
+    console.error(`Database Connection Failed: ${error.message}`);
+    global.isDbConnected = false;
     return false;
   }
 };
 
-module.exports = connectDB;
+module.exports = { connectDB, prisma };
