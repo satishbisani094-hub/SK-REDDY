@@ -248,3 +248,12 @@ export const getDbStatus = async () => {
     provider: 'postgresql'
   };
 };
+
+export const getDashboardData = async () => {
+  const data = await fetchAllData();
+  return {
+    tours: data.tours || [],
+    gallery: data.gallery || [],
+    enquiries: data.enquiries || []
+  };
+};

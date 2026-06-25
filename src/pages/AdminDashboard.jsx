@@ -7,7 +7,7 @@ import {
 import { 
   isAuthenticated, getTours, createTour, updateTour, deleteTour, 
   getGalleryItems, createGalleryItems, deleteGalleryItem, 
-  getEnquiries, deleteEnquiry, getImageUrl, getDbStatus
+  getEnquiries, deleteEnquiry, getImageUrl, getDbStatus, getDashboardData
 } from '../services/api';
 import AdminLayout from '../components/AdminLayout';
 import Toast from '../components/Toast';
@@ -58,9 +58,7 @@ const AdminDashboard = ({ onViewChange, onLogout }) => {
 
   const syncDashboardData = async () => {
     try {
-      const tours = await getTours();
-      const gallery = await getGalleryItems();
-      const enquiries = await getEnquiries();
+      const { tours, gallery, enquiries } = await getDashboardData();
 
       const toursArray = Array.isArray(tours) ? tours : [];
       const galleryArray = Array.isArray(gallery) ? gallery : [];
@@ -128,9 +126,7 @@ const AdminDashboard = ({ onViewChange, onLogout }) => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const tours = await getTours();
-      const gallery = await getGalleryItems();
-      const enquiries = await getEnquiries();
+      const { tours, gallery, enquiries } = await getDashboardData();
 
       try {
         const dbStatus = await getDbStatus();
