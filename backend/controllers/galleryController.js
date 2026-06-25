@@ -7,14 +7,21 @@ const getGalleryItems = async (req, res) => {
   const { category } = req.query;
 
   try {
-    const query = {};
-
-    if (category && category !== 'All') {
-      query.category = category;
+    let items;
+    if (global.isMongoConnected) {
+      const query = {};
+      if (category && category !== 'All') {
+        query.category = category;
+      }
+      items = await Gallery.find(query).sort({ createdAt: -1 });
+    } else {
+      const { readData } = require('../config/jsonDb');
+      items = readData('gallery');
+      if (category && category !== 'All') {
+        items = items.filter(item => item.category === category);
+      }
+      items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     }
-
-    // Sort by creation date descending (newest first)
-    const items = await Gallery.find(query).sort({ createdAt: -1 });
 
     res.json(items);
   } catch (error) {
@@ -43,17 +50,39 @@ const createGalleryItems = async (req, res) => {
       parsedImages = image.split(',').map(url => url.trim()).filter(Boolean);
     }
 
-    // Save each image URL
-    for (let i = 0; i < parsedImages.length; i++) {
-      const imgUrl = parsedImages[i];
-      const itemTitle = parsedImages.length > 1 ? `${title} (${i + 1})` : title;
+    if (global.isMongoConnected) {
+      // Save each image URL to MongoDB
+      for (let i = 0; i < parsedImages.length; i++) {
+        const imgUrl = parsedImages[i];
+        const itemTitle = parsedImages.length > 1 ? `${title} (${i + 1})` : title;
 
-      const newItem = await Gallery.create({
-        title: itemTitle || `Adventure Photo`,
-        category,
-        image: imgUrl
-      });
-      createdItems.push(newItem);
+        const newItem = await Gallery.create({
+          title: itemTitle || `Adventure Photo`,
+          category,
+          image: imgUrl
+        });
+        createdItems.push(newItem);
+      }
+    } else {
+      const { readData, writeData, generateId } = require('../config/jsonDb');
+      const items = readData('gallery');
+      
+      for (let i = 0; i < parsedImages.length; i++) {
+        const imgUrl = parsedImages[i];
+        const itemTitle = parsedImages.length > 1 ? `${title} (${i + 1})` : title;
+
+        const newItem = {
+          _id: generateId(),
+          title: itemTitle || `Adventure Photo`,
+          category,
+          image: imgUrl,
+          createdAt: new Date().toISOString()
+        };
+
+        items.push(newItem);
+        createdItems.push(newItem);
+      }
+      writeData('gallery', items);
     }
 
     res.status(201).json(createdItems);
@@ -67,13 +96,26 @@ const createGalleryItems = async (req, res) => {
 // @access  Private/Admin
 const deleteGalleryItem = async (req, res) => {
   try {
-    const item = await Gallery.findById(req.params.id);
+    if (global.isMongoConnected) {
+      const item = await Gallery.findById(req.params.id);
 
-    if (!item) {
-      return res.status(404).json({ message: 'Gallery item not found' });
+      if (!item) {
+        return res.status(404).json({ message: 'Gallery item not found' });
+      }
+
+      await item.deleteOne();
+    } else {
+      const { readData, writeData } = require('../config/jsonDb');
+      const items = readData('gallery');
+      const item = items.find(i => i._id === req.params.id);
+
+      if (!item) {
+        return res.status(404).json({ message: 'Gallery item not found' });
+      }
+
+      const updatedItems = items.filter(i => i._id !== req.params.id);
+      writeData('gallery', updatedItems);
     }
-
-    await item.deleteOne();
 
     res.json({ message: 'Gallery item deleted successfully' });
   } catch (error) {

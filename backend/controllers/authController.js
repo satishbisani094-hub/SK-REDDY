@@ -15,9 +15,25 @@ const loginAdmin = async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    const admin = await Admin.findOne({ username });
+    let admin;
+    let isMatch = false;
 
-    if (admin && (await admin.matchPassword(password))) {
+    if (global.isMongoConnected) {
+      admin = await Admin.findOne({ username });
+      if (admin) {
+        isMatch = await admin.matchPassword(password);
+      }
+    } else {
+      const { readData } = require('../config/jsonDb');
+      const bcrypt = require('bcryptjs');
+      const admins = readData('admins');
+      admin = admins.find(a => a.username === username);
+      if (admin) {
+        isMatch = await bcrypt.compare(password, admin.password);
+      }
+    }
+
+    if (admin && isMatch) {
       res.json({
         _id: admin._id,
         username: admin.username,
@@ -48,23 +64,49 @@ const seedAdmin = async () => {
   try {
     const username = process.env.ADMIN_USERNAME || 'skreddy';
     const password = process.env.ADMIN_PASSWORD || 'skreddy#1234';
+    const bcrypt = require('bcryptjs');
     
-    const count = await Admin.countDocuments();
-    
-    if (count === 0) {
-      // Create new admin (Admin.js pre-save hook will hash password automatically)
-      await Admin.create({
-        username,
-        password
-      });
-      console.log(`Default admin account seeded successfully. (Username: ${username})`);
+    if (global.isMongoConnected) {
+      const count = await Admin.countDocuments();
+      
+      if (count === 0) {
+        // Create new admin (Admin.js pre-save hook will hash password automatically)
+        await Admin.create({
+          username,
+          password
+        });
+        console.log(`Default admin account seeded successfully. (Username: ${username})`);
+      } else {
+        // Update existing first admin's credentials to match latest env settings
+        const firstAdmin = await Admin.findOne();
+        firstAdmin.username = username;
+        firstAdmin.password = password; // triggers pre-save hook for password hash updating
+        await firstAdmin.save();
+        console.log(`Admin account credentials updated to match env files. (Username: ${username})`);
+      }
     } else {
-      // Update existing first admin's credentials to match latest env settings
-      const firstAdmin = await Admin.findOne();
-      firstAdmin.username = username;
-      firstAdmin.password = password; // triggers pre-save hook for password hash updating
-      await firstAdmin.save();
-      console.log(`Admin account credentials updated to match env files. (Username: ${username})`);
+      const { readData, writeData, generateId } = require('../config/jsonDb');
+      const admins = readData('admins');
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+
+      if (admins.length === 0) {
+        const newAdmin = {
+          _id: generateId(),
+          username,
+          password: hashedPassword,
+          createdAt: new Date().toISOString()
+        };
+        admins.push(newAdmin);
+        writeData('admins', admins);
+        console.log(`Default admin account seeded successfully in JSON DB. (Username: ${username})`);
+      } else {
+        // Update existing first admin's credentials in JSON DB
+        admins[0].username = username;
+        admins[0].password = hashedPassword;
+        writeData('admins', admins);
+        console.log(`Admin account credentials updated in JSON DB to match env files. (Username: ${username})`);
+      }
     }
   } catch (error) {
     console.error('Error seeding admin:', error);

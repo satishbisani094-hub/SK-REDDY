@@ -7,23 +7,46 @@ const getTours = async (req, res) => {
   const { search, difficulty } = req.query;
   
   try {
-    const query = {};
+    let tours;
+    if (global.isMongoConnected) {
+      const query = {};
 
-    // Filter by search string
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { location: { $regex: search, $options: 'i' } }
-      ];
+      // Filter by search string
+      if (search) {
+        query.$or = [
+          { title: { $regex: search, $options: 'i' } },
+          { location: { $regex: search, $options: 'i' } }
+        ];
+      }
+
+      // Filter by difficulty level
+      if (difficulty && difficulty !== 'All') {
+        query.difficulty = difficulty;
+      }
+
+      // Sort by tour date ascending
+      tours = await Tour.find(query).sort({ tourDate: 1 });
+    } else {
+      const { readData } = require('../config/jsonDb');
+      tours = readData('tours');
+
+      // Filter by search string
+      if (search) {
+        const searchLower = search.toLowerCase();
+        tours = tours.filter(t => 
+          t.title.toLowerCase().includes(searchLower) || 
+          t.location.toLowerCase().includes(searchLower)
+        );
+      }
+
+      // Filter by difficulty level
+      if (difficulty && difficulty !== 'All') {
+        tours = tours.filter(t => t.difficulty === difficulty);
+      }
+
+      // Sort by tour date ascending
+      tours.sort((a, b) => new Date(a.tourDate) - new Date(b.tourDate));
     }
-
-    // Filter by difficulty level
-    if (difficulty && difficulty !== 'All') {
-      query.difficulty = difficulty;
-    }
-
-    // Sort by tour date ascending
-    const tours = await Tour.find(query).sort({ tourDate: 1 });
 
     res.json(tours);
   } catch (error) {
@@ -36,7 +59,14 @@ const getTours = async (req, res) => {
 // @access  Public
 const getTourById = async (req, res) => {
   try {
-    const tour = await Tour.findById(req.params.id);
+    let tour;
+    if (global.isMongoConnected) {
+      tour = await Tour.findById(req.params.id);
+    } else {
+      const { readData } = require('../config/jsonDb');
+      const tours = readData('tours');
+      tour = tours.find(t => t._id === req.params.id);
+    }
 
     if (!tour) {
       return res.status(404).json({ message: 'Tour not found' });
@@ -68,18 +98,42 @@ const createTour = async (req, res) => {
       }
     }
 
-    const newTour = await Tour.create({
-      title,
-      location,
-      description,
-      duration,
-      difficulty,
-      price: Number(price),
-      seats: Number(seats),
-      tourDate: new Date(tourDate),
-      coverImage,
-      galleryImages: parsedGallery
-    });
+    let newTour;
+    if (global.isMongoConnected) {
+      newTour = await Tour.create({
+        title,
+        location,
+        description,
+        duration,
+        difficulty,
+        price: Number(price),
+        seats: Number(seats),
+        tourDate: new Date(tourDate),
+        coverImage,
+        galleryImages: parsedGallery
+      });
+    } else {
+      const { readData, writeData, generateId } = require('../config/jsonDb');
+      const tours = readData('tours');
+
+      newTour = {
+        _id: generateId(),
+        title,
+        location,
+        description,
+        duration,
+        difficulty,
+        price: Number(price),
+        seats: Number(seats),
+        tourDate: new Date(tourDate).toISOString(),
+        coverImage,
+        galleryImages: parsedGallery,
+        createdAt: new Date().toISOString()
+      };
+
+      tours.push(newTour);
+      writeData('tours', tours);
+    }
 
     res.status(201).json(newTour);
   } catch (error) {
@@ -94,35 +148,74 @@ const updateTour = async (req, res) => {
   try {
     const { title, location, description, duration, difficulty, price, seats, tourDate, coverImage, galleryImages } = req.body;
 
-    const tour = await Tour.findById(req.params.id);
+    let updatedTour;
+    if (global.isMongoConnected) {
+      const tour = await Tour.findById(req.params.id);
 
-    if (!tour) {
-      return res.status(404).json({ message: 'Tour not found' });
-    }
-
-    // Update simple fields
-    if (title) tour.title = title;
-    if (location) tour.location = location;
-    if (description) tour.description = description;
-    if (duration) tour.duration = duration;
-    if (difficulty) tour.difficulty = difficulty;
-    if (price !== undefined) tour.price = Number(price);
-    if (seats !== undefined) tour.seats = Number(seats);
-    if (tourDate) tour.tourDate = new Date(tourDate);
-    if (coverImage) tour.coverImage = coverImage;
-
-    // Parse and set gallery images
-    if (galleryImages !== undefined) {
-      let parsedGallery = [];
-      if (Array.isArray(galleryImages)) {
-        parsedGallery = galleryImages;
-      } else if (typeof galleryImages === 'string') {
-        parsedGallery = galleryImages.split(',').map(url => url.trim()).filter(Boolean);
+      if (!tour) {
+        return res.status(404).json({ message: 'Tour not found' });
       }
-      tour.galleryImages = parsedGallery;
-    }
 
-    const updatedTour = await tour.save();
+      // Update simple fields
+      if (title) tour.title = title;
+      if (location) tour.location = location;
+      if (description) tour.description = description;
+      if (duration) tour.duration = duration;
+      if (difficulty) tour.difficulty = difficulty;
+      if (price !== undefined) tour.price = Number(price);
+      if (seats !== undefined) tour.seats = Number(seats);
+      if (tourDate) tour.tourDate = new Date(tourDate);
+      if (coverImage) tour.coverImage = coverImage;
+
+      // Parse and set gallery images
+      if (galleryImages !== undefined) {
+        let parsedGallery = [];
+        if (Array.isArray(galleryImages)) {
+          parsedGallery = galleryImages;
+        } else if (typeof galleryImages === 'string') {
+          parsedGallery = galleryImages.split(',').map(url => url.trim()).filter(Boolean);
+        }
+        tour.galleryImages = parsedGallery;
+      }
+
+      updatedTour = await tour.save();
+    } else {
+      const { readData, writeData } = require('../config/jsonDb');
+      const tours = readData('tours');
+      const tourIndex = tours.findIndex(t => t._id === req.params.id);
+
+      if (tourIndex === -1) {
+        return res.status(404).json({ message: 'Tour not found' });
+      }
+
+      const tour = tours[tourIndex];
+      // Update simple fields
+      if (title) tour.title = title;
+      if (location) tour.location = location;
+      if (description) tour.description = description;
+      if (duration) tour.duration = duration;
+      if (difficulty) tour.difficulty = difficulty;
+      if (price !== undefined) tour.price = Number(price);
+      if (seats !== undefined) tour.seats = Number(seats);
+      if (tourDate) tour.tourDate = new Date(tourDate).toISOString();
+      if (coverImage) tour.coverImage = coverImage;
+
+      // Parse and set gallery images
+      if (galleryImages !== undefined) {
+        let parsedGallery = [];
+        if (Array.isArray(galleryImages)) {
+          parsedGallery = galleryImages;
+        } else if (typeof galleryImages === 'string') {
+          parsedGallery = galleryImages.split(',').map(url => url.trim()).filter(Boolean);
+        }
+        tour.galleryImages = parsedGallery;
+      }
+
+      tour.updatedAt = new Date().toISOString();
+      tours[tourIndex] = tour;
+      writeData('tours', tours);
+      updatedTour = tour;
+    }
 
     res.json(updatedTour);
   } catch (error) {
@@ -135,13 +228,27 @@ const updateTour = async (req, res) => {
 // @access  Private/Admin
 const deleteTour = async (req, res) => {
   try {
-    const tour = await Tour.findById(req.params.id);
+    if (global.isMongoConnected) {
+      const tour = await Tour.findById(req.params.id);
 
-    if (!tour) {
-      return res.status(404).json({ message: 'Tour not found' });
+      if (!tour) {
+        return res.status(404).json({ message: 'Tour not found' });
+      }
+
+      await tour.deleteOne();
+    } else {
+      const { readData, writeData } = require('../config/jsonDb');
+      const tours = readData('tours');
+      const tour = tours.find(t => t._id === req.params.id);
+
+      if (!tour) {
+        return res.status(404).json({ message: 'Tour not found' });
+      }
+
+      // Filter out the deleted tour
+      const updatedTours = tours.filter(t => t._id !== req.params.id);
+      writeData('tours', updatedTours);
     }
-
-    await tour.deleteOne();
 
     res.json({ message: 'Tour deleted successfully' });
   } catch (error) {
