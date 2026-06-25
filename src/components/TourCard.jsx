@@ -1,9 +1,11 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { FaMapMarkerAlt, FaClock, FaUserAlt, FaArrowRight } from 'react-icons/fa';
 import { getImageUrl } from '../services/api';
 
-const TourCard = ({ tour, onViewDetails }) => {
+const TourCard = ({ tour }) => {
   const { _id, title, location, duration, difficulty, price, seats, coverImage } = tour;
+
 
   // Custom styling for difficulty pills
   const getDifficultyColor = (level) => {
@@ -77,12 +79,12 @@ const TourCard = ({ tour, onViewDetails }) => {
             </span>
           </div>
 
-          <button
-            onClick={() => onViewDetails(_id)}
+          <Link
+            to={`/tours/${_id}`}
             className="flex items-center gap-1.5 text-xs font-bold text-forest-500 hover:text-white bg-forest-500/10 hover:bg-forest-600 px-3.5 py-2 rounded-xl transition-all duration-300 cursor-pointer"
           >
             Details <FaArrowRight className="text-[10px]" />
-          </button>
+          </Link>
         </div>
       </div>
     </div>

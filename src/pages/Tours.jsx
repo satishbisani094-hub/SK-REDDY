@@ -4,7 +4,7 @@ import { getTours } from '../services/api';
 import TourCard from '../components/TourCard';
 import { TourCardSkeleton } from '../components/SkeletonLoader';
 
-const Tours = ({ onViewDetails }) => {
+const Tours = () => {
   const [tours, setTours] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -112,7 +112,7 @@ const Tours = ({ onViewDetails }) => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {tours.map((tour) => (
-            <TourCard key={tour._id} tour={tour} onViewDetails={onViewDetails} />
+            <TourCard key={tour._id} tour={tour} />
           ))}
         </div>
       )}

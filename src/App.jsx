@@ -1,46 +1,43 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import WhatsAppButton from './components/WhatsAppButton';
 import Home from './pages/Home';
+import About from './pages/About';
+import Tours from './pages/Tours';
+import TourDetails from './pages/TourDetails';
+import Gallery from './pages/Gallery';
+import Contact from './pages/Contact';
+import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
-import TourDetailsOverlay from './components/TourDetailsOverlay';
-import AdminLoginModal from './components/AdminLoginModal';
 import { logout as apiLogout, isAuthenticated } from './services/api';
 
-function App() {
-  const [view, setView] = useState('public'); // 'public' | 'admin-dashboard'
-  const [selectedTourId, setSelectedTourId] = useState(null);
-  const [adminLoginOpen, setAdminLoginOpen] = useState(false);
+// Route guard for the admin dashboard
+function AdminProtectedRoute({ children }) {
+  return isAuthenticated() ? children : <Navigate to="/admin/login" replace />;
+}
 
-  // Scroll to top on view changes
+function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
+  // Scroll to top on route changes
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [view]);
-
-  const handleOpenAdminLogin = () => {
-    setAdminLoginOpen(true);
-  };
-
-  const handleCloseAdminLogin = () => {
-    setAdminLoginOpen(false);
-  };
-
-  const handleLoginSuccess = () => {
-    setAdminLoginOpen(false);
-    setView('admin-dashboard');
-  };
+  }, [location.pathname]);
 
   const handleLogout = () => {
     apiLogout();
-    setView('public');
+    navigate('/admin/login');
   };
 
-  const handleViewChange = (newView) => {
-    if (newView === 'admin-dashboard' && !isAuthenticated()) {
-      setAdminLoginOpen(true);
-    } else {
-      setView(newView);
+  const handleViewChange = (view) => {
+    if (view === 'public') {
+      navigate('/');
+    } else if (view === 'admin-dashboard') {
+      navigate('/admin');
     }
   };
 
@@ -48,51 +45,46 @@ function App() {
     <div className="flex flex-col min-h-screen bg-dark-bg text-gray-300">
       
       {/* 1. Header Navigation Menu (only shown on public view) */}
-      {view === 'public' && (
+      {!isAdminRoute && (
         <Navbar 
-          onOpenAdminLogin={handleOpenAdminLogin} 
+          onOpenAdminLogin={() => navigate('/admin/login')} 
           onViewChange={handleViewChange}
-          currentView={view}
+          currentView="public"
         />
       )}
 
       {/* 2. Main Page Content */}
       <div className="flex-grow">
-        {view === 'public' ? (
-          <Home 
-            onViewDetails={setSelectedTourId} 
-            onOpenAdminLogin={handleOpenAdminLogin}
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/tours" element={<Tours />} />
+          <Route path="/tours/:id" element={<TourDetails />} />
+          <Route path="/gallery" element={<Gallery />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route 
+            path="/admin" 
+            element={
+              <AdminProtectedRoute>
+                <AdminDashboard 
+                  onViewChange={handleViewChange}
+                  onLogout={handleLogout}
+                />
+              </AdminProtectedRoute>
+            } 
           />
-        ) : (
-          <AdminDashboard 
-            onViewChange={handleViewChange}
-            onLogout={handleLogout}
-          />
-        )}
+          {/* Fallback to Home */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </div>
 
       {/* 3. Footer & Float actions (only shown on public view) */}
-      {view === 'public' && (
+      {!isAdminRoute && (
         <>
           <WhatsAppButton />
           <Footer />
         </>
-      )}
-
-      {/* 4. Fullscreen Tour Details Pop-up sheet */}
-      {selectedTourId && (
-        <TourDetailsOverlay 
-          tourId={selectedTourId} 
-          onClose={() => setSelectedTourId(null)}
-        />
-      )}
-
-      {/* 5. Admin Login Pop-up dialog */}
-      {adminLoginOpen && (
-        <AdminLoginModal 
-          onClose={handleCloseAdminLogin} 
-          onSuccess={handleLoginSuccess}
-        />
       )}
 
     </div>
@@ -100,3 +92,4 @@ function App() {
 }
 
 export default App;
+

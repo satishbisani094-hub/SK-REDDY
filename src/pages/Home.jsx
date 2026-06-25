@@ -1,25 +1,18 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { FaCompass, FaArrowRight } from 'react-icons/fa';
 import About from './About';
 import Tours from './Tours';
 import Gallery from './Gallery';
 import Contact from './Contact';
 
-const Home = ({ onViewDetails, onOpenAdminLogin }) => {
+const Home = () => {
   const stats = [
     { value: '100+', label: 'Tours Completed' },
     { value: '500+', label: 'Travelers Guided' },
     { value: '20+', label: 'Destinations' },
     { value: '10+', label: 'Years Experience' }
   ];
-
-  // Scroll handler for button clicks
-  const scrollToSection = (id) => {
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -50,18 +43,18 @@ const Home = ({ onViewDetails, onOpenAdminLogin }) => {
             Unforgettable Adventure Tours and Trekking Experiences
           </p>
           <div className="pt-6 flex flex-col sm:flex-row justify-center items-center gap-4">
-            <button
-              onClick={() => scrollToSection('tours')}
-              className="w-full sm:w-auto px-8 py-4 bg-forest-800 hover:bg-forest-700 text-white rounded-2xl font-bold transition-all shadow-lg border border-forest-600/30 flex items-center justify-center gap-2 cursor-pointer text-sm"
+            <Link
+              to="/tours"
+              className="w-full sm:w-auto px-8 py-4 bg-forest-800 hover:bg-forest-700 text-white rounded-2xl font-bold transition-all shadow-lg border border-forest-600/30 flex items-center justify-center gap-2 cursor-pointer text-sm animate-pulse-slow"
             >
               Explore Tours <FaArrowRight className="text-xs" />
-            </button>
-            <button
-              onClick={() => scrollToSection('contact')}
+            </Link>
+            <Link
+              to="/contact"
               className="w-full sm:w-auto px-8 py-4 glass hover:bg-white/10 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 text-sm cursor-pointer"
             >
               Contact Us
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -91,7 +84,7 @@ const Home = ({ onViewDetails, onOpenAdminLogin }) => {
 
       {/* Section 3: Upcoming Tours */}
       <section id="tours" className="border-b border-white/5">
-        <Tours onViewDetails={onViewDetails} />
+        <Tours />
       </section>
 
       {/* Section 4: Photo Gallery */}
@@ -120,7 +113,6 @@ const Home = ({ onViewDetails, onOpenAdminLogin }) => {
           </div>
         </div>
       </section>
-
 
     </div>
   );
