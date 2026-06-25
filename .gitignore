@@ -92,5 +92,5 @@ frontend/dist/
 dist/
 
 # Prisma SQLite databases
-*.db
+dev.db
 *.db-journal
