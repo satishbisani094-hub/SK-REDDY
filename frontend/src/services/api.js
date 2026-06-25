@@ -41,8 +41,8 @@ api.interceptors.response.use(
 );
 
 // Auth Services
-export const login = async (username, password) => {
-  const response = await api.post('/auth/login', { username, password });
+export const login = async (phone) => {
+  const response = await api.post('/auth/login', { phone });
   if (response.data && response.data.token) {
     localStorage.setItem('adminToken', response.data.token);
     localStorage.setItem('adminUser', JSON.stringify({ username: response.data.username }));

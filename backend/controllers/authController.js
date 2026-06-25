@@ -9,33 +9,48 @@ const generateToken = (id) => {
   });
 };
 
+const ADMIN_PHONES = ['8520016332', '9000012345', '7989245079'];
+
 // @desc    Auth admin & get token
 // @route   POST /api/auth/login
 // @access  Public
 const loginAdmin = async (req, res) => {
-  const { username, password } = req.body;
+  const { phone } = req.body;
 
   try {
-    const trimmedUsername = username ? username.trim() : '';
-    const trimmedPassword = password ? password.trim() : '';
-
-    const admins = await prisma.admin.findMany();
-    const admin = admins.find(a => a.username && a.username.toLowerCase() === trimmedUsername.toLowerCase());
-
-    let isMatch = false;
-    if (admin) {
-      isMatch = await bcrypt.compare(trimmedPassword, admin.password);
+    if (!phone) {
+      return res.status(400).json({ message: 'Phone number is required' });
     }
 
-    if (admin && isMatch) {
-      res.json({
-        _id: admin.id,
-        username: admin.username,
-        token: generateToken(admin.id),
+    const cleanPhone = phone.replace(/\D/g, '');
+    const normalizedPhone = cleanPhone.length > 10 && cleanPhone.startsWith('91') 
+      ? cleanPhone.slice(-10) 
+      : cleanPhone;
+
+    if (!ADMIN_PHONES.includes(normalizedPhone)) {
+      return res.status(401).json({ message: 'This mobile number is not authorized for Admin access' });
+    }
+
+    // Get or create the admin account with a fixed ID
+    let admin = await prisma.admin.findUnique({
+      where: { username: normalizedPhone }
+    });
+
+    if (!admin) {
+      admin = await prisma.admin.create({
+        data: {
+          id: "6a38e9f3ca8f37ad00a223aa", // Maintain database consistency
+          username: normalizedPhone,
+          password: 'otp-authenticated-account'
+        }
       });
-    } else {
-      res.status(401).json({ message: 'Invalid username or password' });
     }
+
+    res.json({
+      _id: admin.id,
+      username: admin.username,
+      token: generateToken(admin.id),
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error: ' + error.message });
   }
@@ -46,7 +61,6 @@ const loginAdmin = async (req, res) => {
 // @access  Private
 const getMe = async (req, res) => {
   try {
-    // req.admin is already loaded in protectAdmin middleware
     res.json(req.admin);
   } catch (error) {
     res.status(500).json({ message: 'Server error: ' + error.message });
@@ -56,34 +70,29 @@ const getMe = async (req, res) => {
 // Seed default admin account
 const seedAdmin = async () => {
   try {
-    const username = (process.env.ADMIN_USERNAME || 'skreddy').trim();
-    const password = (process.env.ADMIN_PASSWORD || 'skreddy#1234').trim();
+    const defaultPhone = '8520016332';
     
     const count = await prisma.admin.count();
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
     if (count === 0) {
-      // Create new admin with fixed ID matching local JSON DB
       await prisma.admin.create({
         data: {
           id: "6a38e9f3ca8f37ad00a223aa",
-          username,
-          password: hashedPassword
+          username: defaultPhone,
+          password: 'otp-authenticated-account'
         }
       });
-      console.log(`Default admin account seeded successfully. (Username: ${username})`);
+      console.log(`Default admin account seeded successfully. (Phone: ${defaultPhone})`);
     } else {
       const firstAdmin = await prisma.admin.findFirst();
-      if (firstAdmin) {
+      if (firstAdmin && !ADMIN_PHONES.includes(firstAdmin.username)) {
         await prisma.admin.update({
           where: { id: firstAdmin.id },
           data: {
-            username,
-            password: hashedPassword
+            username: defaultPhone,
+            password: 'otp-authenticated-account'
           }
         });
-        console.log(`Admin account credentials updated to match env files. (Username: ${username})`);
+        console.log(`Admin account credentials updated to match phone-based auth. (Phone: ${defaultPhone})`);
       }
     }
   } catch (error) {
