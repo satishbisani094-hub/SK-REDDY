@@ -17,21 +17,38 @@ const Home = () => {
     { value: '10+', label: 'Years Experience' }
   ];
 
+  const syncData = async () => {
+    try {
+      const toursData = await getTours();
+      const galleryData = await getGalleryItems();
+      if (Array.isArray(toursData)) setTours(toursData);
+      if (Array.isArray(galleryData)) setGallery(galleryData);
+    } catch (err) {
+      console.error('Error syncing home data:', err);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      try {
-        const toursData = await getTours();
-        const galleryData = await getGalleryItems();
-        if (Array.isArray(toursData)) setTours(toursData);
-        if (Array.isArray(galleryData)) setGallery(galleryData);
-      } catch (err) {
-        console.error('Error fetching home data:', err);
-      } finally {
-        setLoading(false);
-      }
+      await syncData();
+      setLoading(false);
     };
     fetchData();
+
+    // Sync data every 15 seconds in the background
+    const interval = setInterval(syncData, 15000);
+
+    // Sync data when the user focuses the tab
+    const handleFocus = () => {
+      syncData();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   return (

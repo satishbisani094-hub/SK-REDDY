@@ -28,9 +28,32 @@ const Tours = () => {
     }
   };
 
+  const syncToursData = async () => {
+    try {
+      const data = await getTours(search, difficulty);
+      if (Array.isArray(data)) {
+        setTours(data);
+      }
+    } catch (error) {
+      console.error('Error syncing tours:', error);
+    }
+  };
+
   useEffect(() => {
     fetchToursData();
   }, [difficulty]);
+
+  useEffect(() => {
+    const interval = setInterval(syncToursData, 15000);
+    const handleFocus = () => {
+      syncToursData();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [search, difficulty]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();

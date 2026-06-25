@@ -56,12 +56,69 @@ const AdminDashboard = ({ onViewChange, onLogout }) => {
   const [galleryUrls, setGalleryUrls] = useState('');
   const [galleryFormLoading, setGalleryFormLoading] = useState(false);
 
+  const syncDashboardData = async () => {
+    try {
+      const tours = await getTours();
+      const gallery = await getGalleryItems();
+      const enquiries = await getEnquiries();
+
+      const toursArray = Array.isArray(tours) ? tours : [];
+      const galleryArray = Array.isArray(gallery) ? gallery : [];
+      const enquiriesArray = Array.isArray(enquiries) ? enquiries : [];
+
+      setToursList(toursArray);
+      setGalleryList(galleryArray);
+      setEnquiriesList(enquiriesArray);
+
+      const today = new Date();
+      const upcoming = toursArray.filter(t => new Date(t.tourDate) >= today).length;
+
+      setStats({
+        totalTours: toursArray.length,
+        upcomingTours: upcoming,
+        galleryImages: galleryArray.length,
+        totalEnquiries: enquiriesArray.length
+      });
+    } catch (error) {
+      console.error('Error syncing dashboard data:', error);
+    }
+  };
+
   useEffect(() => {
     if (!isAuthenticated()) {
       onLogout();
       return;
     }
-    fetchDashboardData();
+    
+    const initData = async () => {
+      setLoading(true);
+      await syncDashboardData();
+      try {
+        const dbStatus = await getDbStatus();
+        setIsMongoConnected(dbStatus.isMongoConnected);
+        if (dbStatus.provider) {
+          setDbProvider(dbStatus.provider);
+        }
+      } catch (err) {
+        console.error('Failed to fetch database connection status:', err);
+      }
+      setLoading(false);
+    };
+    initData();
+
+    // Poll for remote updates every 15 seconds
+    const interval = setInterval(syncDashboardData, 15000);
+
+    // Refresh immediately when focus returns to the tab
+    const handleFocus = () => {
+      syncDashboardData();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [onLogout]);
 
   const showToast = (message, type = 'success') => {

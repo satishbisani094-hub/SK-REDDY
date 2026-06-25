@@ -9,25 +9,36 @@ const Gallery = () => {
   const [category, setCategory] = useState('All');
   const [lightboxIndex, setLightboxIndex] = useState(null);
 
+  const syncGallery = async () => {
+    try {
+      const data = await getGalleryItems(category);
+      if (Array.isArray(data)) {
+        setItems(data);
+      }
+    } catch (error) {
+      console.error('Error syncing gallery:', error);
+    }
+  };
+
   useEffect(() => {
     const fetchGallery = async () => {
       setLoading(true);
-      try {
-        const data = await getGalleryItems(category);
-        if (Array.isArray(data)) {
-          setItems(data);
-        } else {
-          console.error('Expected array of gallery items, received:', data);
-          setItems([]);
-        }
-      } catch (error) {
-        console.error('Error fetching gallery:', error);
-        setItems([]);
-      } finally {
-        setLoading(false);
-      }
+      await syncGallery();
+      setLoading(false);
     };
     fetchGallery();
+  }, [category]);
+
+  useEffect(() => {
+    const interval = setInterval(syncGallery, 15000);
+    const handleFocus = () => {
+      syncGallery();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [category]);
 
   // Handle keyboard events in lightbox

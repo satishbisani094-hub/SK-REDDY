@@ -6,8 +6,19 @@ const ADMIN_NUMBERS = ['8520016332', '9000012345', '7989245079'];
 // Helper to fetch all data from npoint.io JSON bin
 const fetchAllData = async () => {
   try {
-    const res = await axios.get(DB_URL);
-    return res.data || { tours: [], gallery: [], enquiries: [] };
+    const res = await fetch(`${DB_URL}?t=${Date.now()}`, {
+      method: 'GET',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
+    });
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    const data = await res.json();
+    return data || { tours: [], gallery: [], enquiries: [] };
   } catch (err) {
     console.error('Error fetching database:', err);
     return { tours: [], gallery: [], enquiries: [] };
@@ -17,7 +28,16 @@ const fetchAllData = async () => {
 // Helper to save all data to npoint.io JSON bin
 const saveAllData = async (data) => {
   try {
-    await axios.post(DB_URL, data);
+    const res = await fetch(DB_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
     return true;
   } catch (err) {
     console.error('Error saving database:', err);
